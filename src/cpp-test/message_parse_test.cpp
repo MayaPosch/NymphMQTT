@@ -17,7 +17,6 @@ int main() {
 	// Create MQTT binary message, create NmqttMessage instance.
 	// Test message is a Publish command, with the string payload 'Hello World!'.
 	NmqttMessage msg;
-	//uint8_t mqtt_arr[] = { };
 	std::string mqtt_msg({0x30, 0x13, 0x00, 0x04, 'a', '/', 'h', 'i', 0x00});
 	mqtt_msg.append("Hello World!");
 	

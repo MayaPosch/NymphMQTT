@@ -16,6 +16,8 @@
 #include <string>
 #include <cstdint>
 
+#include <bytebauble.h>
+
 
 // Fixed header: first byte, bits [7-4].
 enum MqttPacketType {
@@ -54,7 +56,22 @@ enum MqttQoS {
 };
 
 
+enum MqttReasonCodes {
+	MQTT_CODE_MALFORMED_PACKET = 0x81,
+	MQTT_CODE_PROTOCOL_ERROR = 0x82,
+	MQTT_CODE_RECEIVE_MAX_EXCEEDED = 0x93,
+	MQTT_CODE_PACKAGE_TOO_LARGE = 0x95,
+	MQTT_CODE_RETAIN_UNSUPPORTED = 0x9A,
+	MQTT_CODE_QOS_UNSUPPORTED = 0x9B,
+	MQTT_CODE_SHARED_SUB_UNSUPPORTED = 0x9E,
+	MQTT_CODE_SUB_ID_UNSUPPORTED = 0xA1,
+	MQTT_CODE_WILD_SUB_UNSUPPORTED = 0xA2
+};
+
+
 class NmqttMessage {
+	MqttPacketType command;
+	
 	// For Publish message.
 	bool duplicateMessage;
 	MqttQoS QoS;
@@ -65,6 +82,7 @@ class NmqttMessage {
 	
 	// Variable header.
 	std::string topic;
+	std::string will;
 	
 	// Status flags.
 	bool empty = true;		// Is this an empty message?
@@ -73,20 +91,23 @@ class NmqttMessage {
 	// Payload.
 	std::string payload;
 	
+	ByteBauble bytebauble;
+	
 public:
 	NmqttMessage();
+	NmqttMessage(MqttPacketType type);
 	NmqttMessage(std::string msg);
 	~NmqttMessage();
 	
+	bool createMessage(MqttPacketType type);
 	int parseMessage(std::string msg);
 	bool valid() { return parseGood; }
 	
-	void setWill(std::string will);
-	bool connect(std::string host, int port);
-	bool publish(std::string topic, std::string payload, int qos = 0, bool retain = false);
+	void setWill(std::string will) { this->will = will; }
 	
 	std::string getTopic() { return topic; }
 	std::string getPayload() { return payload; }
+	std::string getWill() { return will; }
 	
 	std::string serialize();
 };

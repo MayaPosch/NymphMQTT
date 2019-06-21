@@ -36,6 +36,12 @@ NmqttMessage::NmqttMessage() {
 }
 
 
+// Create new message with command.
+NmqttMessage::NmqttMessage(MqttPacketType type) {
+	createMessage(type);
+}
+
+
 // Parses the provided binary message, setting the appropriate internal variables and status flags
 // for reading out with other API functions.
 NmqttMessage::NmqttMessage(std::string msg) {
@@ -46,6 +52,15 @@ NmqttMessage::NmqttMessage(std::string msg) {
 // --- DECONSTRUCTOR ---
 NmqttMessage::~NmqttMessage() {
 	//
+}
+
+
+// --- CREATE MESSAGE ---
+//
+bool NmqttMessage::createMessage(MqttPacketType type) {
+	command = type;
+	
+	return true;
 }
 
 
@@ -69,104 +84,22 @@ int NmqttMessage::parseMessage(std::string msg) {
 	
 	// Read out the first byte.
 	std::bitset<8> b0((uint8_t) msg[0]);
+	idx++;
 	
 	// Debug
 	std::cout << "Found command: " << std::hex << (int) msg[0] << std::endl;
-	
-	// Read out the message length from the next 1-4 bytes.
-	// TODO: refactor into loop.
-	int lenBytes = 1;
-	std::bitset<32> tLen;
-	int tLenIdxB1 = 0;
-	int tLenIdxB2 = 7;
-	int tLenIdxB3 = 14;
-	int tLenIdxB4 = 21;
-	std::bitset<8> b1((uint8_t) msg[1]);
+		
+	// Get the message length decoded using ByteBauble's method.
+	int pblen = bytebauble.readPackedInt((uint32_t) msg[1], messageLength);
+	idx += pblen;
 	
 	// debug
-	std::cout << "Bit 1: " << b1.to_string() << std::endl;
-	
-	if (b1.test(7)) {
-		// Another byte follows this one.
-		
-		// debug
-		std::cout << "Found another byte (1)." << std::endl;
-		
-		if (msg.size() < 3) {
-			// TODO: Return error.
-			return -1;
-		}
-		
-		lenBytes++;
-		
-		std::bitset<8> b2((uint8_t) msg[2]);
-		if (b2.test(7)) {
-			// Third byte follows this one.
-		
-			// debug
-			std::cout << "Found another byte (2)." << std::endl;
-		
-			if (msg.size() < 4) {
-				// TODO: return error.
-				return -1;
-			}
-			
-			lenBytes++;
-			
-			std::bitset<8> b3((uint8_t) msg[3]);
-			if (b3.test(7)) {
-				// One more byte follows.				
-				
-				// debug
-				std::cout << "Found another byte (3)." << std::endl;
-				
-				if (msg.size() < 5) {
-					// TODO: return error.
-					return -1;
-				}
-				
-				lenBytes++;
-				
-				std::bitset<8> b4((uint8_t) msg[4]);
-				
-				// Add this value to the total length.
-				// TODO:
-				for (int i = 0; i < 7; ++i) {
-					tLen[tLenIdxB4++] = b4[i];
-				}
-			}
-			
-			// Add the third byte's value to the total length.
-			// TODO:
-			for (int i = 0; i < 7; ++i) {
-				tLen[tLenIdxB3++] = b3[i];
-			}
-		}
-		
-		// Add the second byte's value to the total length.
-		// TODO:
-		for (int i = 0; i < 7; ++i) {
-			tLen[tLenIdxB2++] = b2[i];
-		}
-	}
-	
-	// Sum up the total message length remaining.
-	for (int i = 0; i < 7; ++i) {
-		tLen[tLenIdxB1++] = b1[i];
-	}
-	
-	// Debug
-	std::cout << "tLen: " << tLen.to_string() << std::endl;
-	
-	messageLength = tLen.to_ulong();
-	idx = 1 + lenBytes;
-	
-	// debug
+	std::cout << "Packed integer length: " << pblen << " bytes.\n";
 	std::cout << "Message length: " << messageLength << std::endl;
 	
-	if (lenBytes + 1 + messageLength != msg.length()) {
+	if (pblen + 1 + messageLength != msg.length()) {
 		// Return error.
-		std::cerr << "Message length was wrong: expected " << lenBytes + 1 + messageLength
+		std::cerr << "Message length was wrong: expected " << pblen + 1 + messageLength
 					<< ", got: " << msg.length() << std::endl;
 		return -1;
 	}
@@ -206,4 +139,27 @@ int NmqttMessage::parseMessage(std::string msg) {
 	// Set new flags.
 	parseGood = true;
 	return 1;
+}
+
+
+// --- SERIALIZE ---
+std::string NmqttMessage::serialize() {
+	// First byte contains the command and any flags.
+	std::bitset<8> b0 = command;
+	
+	
+	// Second byte is a Variable Byte, indicating the length of the rest of the message.
+	
+	// Next is the optional header section.
+	
+	// Finally the payload section. This is present for the following message types:
+	// CONNECT 		Required
+	// PUBLISH 		Optional
+	// SUBSCRIBE 	Required
+	// SUBACK 		Required
+	// UNSUBSCRIBE 	Required
+	// UNSUBACK 	Required
+	
+	return std::string();
+	
 }
