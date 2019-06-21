@@ -108,9 +108,13 @@ int NmqttMessage::parseMessage(std::string msg) {
 	if (msg[0] == 0x30) {
 		// Expect just the topic length (two bytes) and the topic string.
 		// UTF-8 strings in MQTT have a big-endian, two-byte length header.
-		// FIXME: just ignoring the MSB for now. Add endianness stuff to handle this.
-		idx++; // Skip MSB.
-		uint16_t strlen = (uint8_t) msg[idx++];
+		uint16_t lenBE = *((uint16_t*) &msg[idx]);
+		
+		// Debug
+		std::cout << "String length (BE): 0x" << std::hex << lenBE << std::endl;
+		
+		uint16_t strlen = bytebauble.toHost(lenBE, BB_BE);
+		idx += 2;
 		topic = msg.substr(idx, strlen);
 		
 		// Debug
