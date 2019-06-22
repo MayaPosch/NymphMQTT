@@ -25,5 +25,5 @@ public:
 	
 	void setWill(std::string will);
 	bool connect(std::string host, int port);
-	bool publish(std::string topic, std::string payload, int qos = 0, bool retain = false);
+	bool publish(std::string topic, std::string payload, MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);
 };

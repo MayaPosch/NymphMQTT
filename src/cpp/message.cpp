@@ -149,12 +149,13 @@ int NmqttMessage::parseMessage(std::string msg) {
 // --- SERIALIZE ---
 std::string NmqttMessage::serialize() {
 	// First byte contains the command and any flags.
-	std::bitset<8> b0 = command;
-	
-	
 	// Second byte is a Variable Byte, indicating the length of the rest of the message.
+	// We'll fill this one in later.
 	
-	// Next is the optional header section.
+	// Next is the optional (variable) header section.
+	// This is present for these types:
+	// 
+	// PUBLISH		Required
 	
 	// Finally the payload section. This is present for the following message types:
 	// CONNECT 		Required
@@ -163,7 +164,123 @@ std::string NmqttMessage::serialize() {
 	// SUBACK 		Required
 	// UNSUBSCRIBE 	Required
 	// UNSUBACK 	Required
+	uint8_t b0 = command;
+	std::string varHeader;
+	switch (command) {
+		case MQTT_CONNECT: {
+			//
+		}
+		
+		break;
+		case MQTT_CONNACK: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBLISH: {
+			// Add flags as required.
+			if (duplicateMessage) { b0 += 8; }
+			if (QoS == MQTT_QOS_AT_LEAST_ONCE) { b0 += 2; }
+			if (QoS == MQTT_QOS_EXACTLY_ONCE) { b0 += 4; }
+			if (retainMessage) { b0 += 1; }
+			
+			// Variable header.
+			// Get the length of the topic, convert it to big endian format.
+			bytebauble.setGlobalEndianness(BB_BE);
+			uint16_t topLenHost = topic.length();
+			uint16_t topLenBE = bytebauble.toGlobal(topLenHost, bytebauble.getHostEndian());
+			
+			varHeader.append((char*) &topLenBE, 2);
+			varHeader += topic;
+			
+			// Add packet identifier if QoS > 0.
+			// TODO:
+			
+			// Set properties. 
+			// TODO: implement. Set to 0 for now.
+			uint8_t properties = 0x00;
+			varHeader.append((char*) &properties, 1);
+		}
+		
+		break;
+		case MQTT_PUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBREC: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBREL: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBCOMP: {
+			//
+		}
+		
+		break;
+		case MQTT_SUBSCRIBE: {
+			//
+		}
+		
+		break;
+		case MQTT_SUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_UNSUBSCRIBE: {
+			//
+		}
+		
+		break;
+		case MQTT_UNSUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_PINGREQ: {
+			//
+		}
+		
+		break;
+		case MQTT_PINGRESP: {
+			//
+		}
+		
+		break;
+		case MQTT_DISCONNECT: {
+			//
+		}
+		
+		break;
+		case MQTT_AUTH: {
+			//
+		}
+		
+		break;
+	};
+		
+	// Calculate message length after the fixed header. Encode as packed integer.
+	uint32_t msgLen = varHeader.length() + payload.length();
+	uint32_t msgLenPacked;
+	uint32_t lenBytes = bytebauble.writePackedInt(msgLen, msgLenPacked);
 	
-	return std::string();
+	// Debug
+	std::cout << "Message length: 0x" << std::hex << msgLen << std::endl;
+	std::cout << "Message length (packed): 0x" << std::hex << msgLenPacked << std::endl;
+	std::cout << "Message length bytes: 0x" << std::hex << lenBytes << std::endl;
+	
+	std::string output; // TODO: preallocate size.
+	output.append((char*) &b0, 1);
+	output.append(((char*) &msgLenPacked), lenBytes); // FIXME: validate
+	output += varHeader;
+	output += payload;
+	
+	return output;
 	
 }

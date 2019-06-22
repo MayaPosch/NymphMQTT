@@ -51,8 +51,8 @@ enum MqttPacketTypeFlags {
 
 enum MqttQoS {
 	MQTT_QOS_AT_MOST_ONCE = 0x0,
-	MQTT_QOS_AT_LEAST_ONCE = 0x1,
-	MQTT_QOS_EXACTLY_ONCE = 0x2
+	MQTT_QOS_AT_LEAST_ONCE = 0x2,
+	MQTT_QOS_EXACTLY_ONCE = 0x4
 };
 
 
@@ -73,9 +73,9 @@ class NmqttMessage {
 	MqttPacketType command;
 	
 	// For Publish message.
-	bool duplicateMessage;
-	MqttQoS QoS;
-	bool retainMessage;
+	bool duplicateMessage = false;
+	MqttQoS QoS = MQTT_QOS_AT_MOST_ONCE;
+	bool retainMessage = false;
 	
 	// Fixed header.
 	uint32_t messageLength;
@@ -103,7 +103,16 @@ public:
 	int parseMessage(std::string msg);
 	bool valid() { return parseGood; }
 	
+	// For Connect message.
 	void setWill(std::string will) { this->will = will; }
+	
+	// For Publish message.
+	void setDuplicateMessage(bool dup) { duplicateMessage = dup; }
+	void setQoS(MqttQoS q) { QoS = q; }
+	void setRetain(bool retain) { retainMessage = retain; }
+	
+	void setTopic(std::string topic) { this->topic = topic; }
+	void setPayload(std::string payload) { this->payload = payload; }
 	
 	std::string getTopic() { return topic; }
 	std::string getPayload() { return payload; }
