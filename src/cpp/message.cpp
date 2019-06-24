@@ -105,40 +105,116 @@ int NmqttMessage::parseMessage(std::string msg) {
 	}
 	
 	// Read the variable header (if present).
-	if (msg[0] == 0x30) {
-		// Expect just the topic length (two bytes) and the topic string.
-		// UTF-8 strings in MQTT have a big-endian, two-byte length header.
-		uint16_t lenBE = *((uint16_t*) &msg[idx]);
-		
-		// Debug
-		std::cout << "String length (BE): 0x" << std::hex << lenBE << std::endl;
-		
-		uint16_t strlen = bytebauble.toHost(lenBE, BB_BE);
-		idx += 2;
-		topic = msg.substr(idx, strlen);
-		
-		// Debug
-		std::cout << "Strlen: " << strlen << ", topic: " << topic << std::endl;
-		
-		idx += strlen;
-	
-		// TODO: handle QoS 1+ here.
-		
-		// Expect no properties here (0x00).
-		
-		// Debug
-		std::cout << "Index for properties: " << idx << std::endl;
-		
-		uint8_t properties = msg[idx++];
-		if (properties != 0x00) {
-			std::cerr << "Expected no properties. Got: " << (int) properties << std::endl;
+	switch ((uint8_t) msg[0]) {
+		case MQTT_CONNECT: {
+			// TODO: implement
 		}
 		
-		// Read the payload. This is the remaining section of the message (if any).
-		if (idx + 1 != msg.length()) {
-			payload = msg.substr(idx);
+		break;
+		case MQTT_CONNACK: {
+			// Basic parse: just get the variable header up till the reason code.
+			sessionPresent = msg[idx++];
+			reasonCode = (MqttReasonCodes) msg[idx++];
 		}
-	}
+		
+		break;
+		case MQTT_PUBLISH: {
+			// Expect just the topic length (two bytes) and the topic string.
+			// UTF-8 strings in MQTT have a big-endian, two-byte length header.
+			uint16_t lenBE = *((uint16_t*) &msg[idx]);
+			
+			// Debug
+			std::cout << "String length (BE): 0x" << std::hex << lenBE << std::endl;
+			
+			uint16_t strlen = bytebauble.toHost(lenBE, BB_BE);
+			idx += 2;
+			topic = msg.substr(idx, strlen);
+			
+			// Debug
+			std::cout << "Strlen: " << strlen << ", topic: " << topic << std::endl;
+			
+			idx += strlen;
+		
+			// TODO: handle QoS 1+ here.
+			
+			// Expect no properties here (0x00).
+			
+			// Debug
+			std::cout << "Index for properties: " << idx << std::endl;
+			
+			uint8_t properties = msg[idx++];
+			if (properties != 0x00) {
+				std::cerr << "Expected no properties. Got: " << (int) properties << std::endl;
+			}
+			
+			// Read the payload. This is the remaining section of the message (if any).
+			if (idx + 1 != msg.length()) {
+				payload = msg.substr(idx);
+			}
+		}
+		
+		break;
+		case MQTT_PUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBREC: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBREL: {
+			//
+		}
+		
+		break;
+		case MQTT_PUBCOMP: {
+			//
+		}
+		
+		break;
+		case MQTT_SUBSCRIBE: {
+			//
+		}
+		
+		break;
+		case MQTT_SUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_UNSUBSCRIBE: {
+			//
+		}
+		
+		break;
+		case MQTT_UNSUBACK: {
+			//
+		}
+		
+		break;
+		case MQTT_PINGREQ: {
+			//
+		}
+		
+		break;
+		case MQTT_PINGRESP: {
+			//
+		}
+		
+		break;
+		case MQTT_DISCONNECT: {
+			//
+		}
+		
+		break;
+		case MQTT_AUTH: {
+			//
+		}
+		
+		break;
+	};
 	
 	// Set new flags.
 	parseGood = true;
@@ -166,14 +242,83 @@ std::string NmqttMessage::serialize() {
 	// UNSUBACK 	Required
 	uint8_t b0 = command;
 	std::string varHeader;
+	bytebauble.setGlobalEndianness(BB_BE);
 	switch (command) {
 		case MQTT_CONNECT: {
-			//
+			// Fixed header has no flags.
+			
+			// The Variable Header for the CONNECT Packet contains the following fields in this 
+			// order: 
+			// * Protocol Name, 
+			// * Protocol Level, 
+			// * Connect Flags, 
+			// * Keep Alive, and
+			// * Properties.
+			bytebauble.setGlobalEndianness(BB_BE);
+			uint16_t protNameLenHost = 0x0004;
+			uint16_t protNameLenBE = bytebauble.toGlobal(protNameLenHost, bytebauble.getHostEndian());
+			varHeader.append((char*) &protNameLenBE, 2);
+			varHeader += "MQTT"; // The fixed protocol name.
+			
+			uint8_t protVersion = 5;	// Protocol version is 5.
+			varHeader.append((char*) &protVersion, 1);
+			
+			uint8_t connectFlags = 0;
+			connectFlags += (uint8_t) MQTT_CONNECT_CLEAN_START;
+			//connectFlags += (uint8_t) MQTT_CONNECT_WILL;
+			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_QOS_L1;
+			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_RETAIN;			
+			// TODO: username & password options.
+			varHeader.append((char*) &connectFlags);
+			
+			uint16_t keepAliveHost = 60; // In seconds.
+			uint16_t keepAliveBE = bytebauble.toGlobal(keepAliveHost, bytebauble.getHostEndian());
+			varHeader.append((char*) &keepAliveBE, 2);
+			
+			uint8_t propertiesLen = 0x05;
+			uint8_t sessionExpIntervalId = 0x11;
+			uint32_t sessionExpInterval = 0x0A;
+			varHeader.append((char*) &propertiesLen, 1);
+			varHeader.append((char*) &sessionExpIntervalId, 1);
+			varHeader.append((char*) &sessionExpInterval, 4);
+			
+			// The payload section depends on previously set flags.
+			// These fields, if present, MUST appear in the order Client Identifier,
+			// Will Properties, Will Topic, Will Payload, User Name, Password.
+			
+			// UTF8-encoded string with 16-bit uint BE header indicating string length.
+			uint16_t clientIdLenHost = clientId.length();
+			uint16_t clientIdLenBE = bytebauble.toGlobal(clientIdLenHost, bytebauble.getHostEndian());
+			payload.append((char*) &clientIdLenBE, 2);
+			payload += clientId;
+			
+			// TODO: Will properties, will topic, will payload.
+			
+			// TODO: username, password.
 		}
 		
 		break;
 		case MQTT_CONNACK: {
-			//
+			// Fixed header has no flags.
+			
+			// The Variable Header of the CONNACK Packet contains the following fields in the order: 
+			// * Connect Acknowledge Flags
+			// * Connect Reason Code
+			// * Properties.
+			
+			// Connect acknowledge flags. 1 byte. Bits 1-7 are reserved and set to 0.
+			// Bit 0 is the session present flag. It's set to 0 if no existing session exists, or
+			// the clean session flag was set in the Connect message.
+			uint8_t connAckFlags = 0x0; // TODO: allow setting of this property.
+			varHeader.append((char*) &connAckFlags, 1);
+			
+			// Connect reason code.
+			// Single byte indicating the result of the connection attempt.
+			uint8_t connRes = 0; // TODO: make settable.
+			varHeader.append((char*) &connRes, 1);
+			
+			// Properties.
+			// TODO: implement.
 		}
 		
 		break;
@@ -186,7 +331,6 @@ std::string NmqttMessage::serialize() {
 			
 			// Variable header.
 			// Get the length of the topic, convert it to big endian format.
-			bytebauble.setGlobalEndianness(BB_BE);
 			uint16_t topLenHost = topic.length();
 			uint16_t topLenBE = bytebauble.toGlobal(topLenHost, bytebauble.getHostEndian());
 			
@@ -224,7 +368,27 @@ std::string NmqttMessage::serialize() {
 		
 		break;
 		case MQTT_SUBSCRIBE: {
-			//
+			// Fixed header has one required value: 0x2.
+			b0 += 0x2;
+			
+			// Variable header. 
+			uint16_t packetIdHost = 10;
+			uint16_t packetIdBE = bytebauble.toGlobal(packetIdHost, bytebauble.getHostEndian());
+			varHeader.append((char*) &packetIdBE, 2);
+			
+			uint8_t propLength = 0;
+			varHeader.append((char*) &propLength, 1);
+			
+			// Payload.
+			uint16_t topicLenHost = topic.length();
+			uint16_t topicLenBE = bytebauble.toGlobal(topicLenHost, bytebauble.getHostEndian());
+			payload.append((char*) &topicLenBE, 2);
+			payload += topic;
+			
+			// Subscribe flags.
+			// TODO: implement settability.
+			uint8_t subFlags = 0;
+			payload.append((char*) &subFlags, 1);
 		}
 		
 		break;

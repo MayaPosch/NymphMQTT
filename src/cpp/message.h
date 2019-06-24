@@ -13,6 +13,10 @@
 */
 
 
+#ifndef NMQTT_MESSAGE_H
+#define NMQTT_MESSAGE_H
+
+
 #include <string>
 #include <cstdint>
 
@@ -56,7 +60,19 @@ enum MqttQoS {
 };
 
 
+enum MqttConnectFlags {
+	MQTT_CONNECT_CLEAN_START = 0x02,
+	MQTT_CONNECT_WILL = 0x04,
+	MQTT_CONNECT_WILL_QOS_L1 = 0x08,
+	MQTT_CONNECT_WILL_QOS_L2 = 0x10,
+	MQTT_CONNECT_WILL_RETAIN = 0x20,
+	MQTT_CONNECT_PASSWORD = 0x40,
+	MQTT_CONNECT_USERNAME = 0x80
+};
+
+
 enum MqttReasonCodes {
+	MQTT_CODE_SUCCESS = 0x0,
 	MQTT_CODE_MALFORMED_PACKET = 0x81,
 	MQTT_CODE_PROTOCOL_ERROR = 0x82,
 	MQTT_CODE_RECEIVE_MAX_EXCEEDED = 0x93,
@@ -82,7 +98,12 @@ class NmqttMessage {
 	
 	// Variable header.
 	std::string topic;
+	bool sessionPresent;
+	MqttReasonCodes reasonCode;
+	
+	// Connect message.
 	std::string will;
+	std::string clientId;
 	
 	// Status flags.
 	bool empty = true;		// Is this an empty message?
@@ -105,6 +126,7 @@ public:
 	
 	// For Connect message.
 	void setWill(std::string will) { this->will = will; }
+	void setClientId(std::string id) { clientId = id; }
 	
 	// For Publish message.
 	void setDuplicateMessage(bool dup) { duplicateMessage = dup; }
@@ -117,6 +139,10 @@ public:
 	std::string getTopic() { return topic; }
 	std::string getPayload() { return payload; }
 	std::string getWill() { return will; }
+	MqttReasonCodes getReasonCode() { return reasonCode; }
 	
 	std::string serialize();
 };
+
+
+#endif
