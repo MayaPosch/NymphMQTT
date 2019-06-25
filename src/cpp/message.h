@@ -122,6 +122,7 @@ public:
 	
 	bool createMessage(MqttPacketType type);
 	int parseMessage(std::string msg);
+	int parseHeader(char* buff, int len, uint32_t &msglen, int& idx);
 	bool valid() { return parseGood; }
 	
 	// For Connect message.
@@ -136,6 +137,7 @@ public:
 	void setTopic(std::string topic) { this->topic = topic; }
 	void setPayload(std::string payload) { this->payload = payload; }
 	
+	MqttPacketType getCommand() { return command; }
 	std::string getTopic() { return topic; }
 	std::string getPayload() { return payload; }
 	std::string getWill() { return will; }

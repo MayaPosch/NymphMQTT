@@ -32,8 +32,9 @@ void logFunction(int level, std::string text) {
 }
 
 
-void messageHandler(std::string topic, std::string payload) {
+void messageHandler(int handle, std::string topic, std::string payload) {
 	std::cout << "New message:" << std::endl;
+	std::cout << "\tHandle: " << handle << std::endl;
 	std::cout << "\tTopic: " << topic << std::endl;
 	std::cout << "\tPayload: " << payload << std::endl;
 }

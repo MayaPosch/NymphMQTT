@@ -30,22 +30,23 @@
 
 
 // Function pointer signatures.
-typedef void (*NymphMessageHandler)(std::string topic, std::string payload);
+typedef void (*NymphMessageHandler)(int handle, std::string topic, std::string payload);
 
 
 class NmqttClient {
 	std::map<int, Poco::Net::StreamSocket*> sockets;
 	std::map<int, Poco::Semaphore*> socketSemaphores;
 	Poco::Mutex socketsMutex;
-	int lastHandle;
-	long timeout;
-	std::string loggerName;
+	int lastHandle = 0;
+	long timeout = 3000;
+	std::string loggerName = "NmqttClient";
 	NymphMessageHandler messageHandler;
 	
 	std::string will;
 	std::string clientId = "NymphMQTT-client";
 	
 	bool sendMessage(int handle, std::string binMsg);
+	bool processCallbacks();
 	
 public:
 	NmqttClient();

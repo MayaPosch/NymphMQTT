@@ -1,20 +1,21 @@
 /*
-	nymph_socket_listener.h	- Declares the NymphRPC Socket Listener class.
+	client_listener.h - Header for the NymphMQTT Client socket listening thread class.
 	
 	Revision 0
 	
+	Features:
+			- Socket listener for MQTT connections.
+			
 	Notes:
 			- 
 			
-	History:
-	2017/06/24, Maya Posch : Initial version.
-	
-	(c) Nyanko.ws
+	2019/05/08 - Maya Posch
 */
 
-#include "nymph_socket_listener.h"
+
+#include "client_listener.h"
+#include "message.h"
 #include "nymph_logger.h"
-#include "nymph_listener.h"
 
 using namespace std;
 
@@ -24,8 +25,8 @@ using namespace Poco;
 
 
 // --- CONSTRUCTOR ---
-NymphSocketListener::NymphSocketListener(NymphSocket socket, Condition* cnd, Mutex* mtx) {
-	loggerName = "NymphSocketListener";
+NmqttClientListener::NmqttClientListener(NymphSocket socket, Condition* cnd, Mutex* mtx) {
+	loggerName = "NmqttClientListener";
 	listen = true;
 	init = true;
 	this->nymphSocket = socket;
@@ -36,23 +37,29 @@ NymphSocketListener::NymphSocketListener(NymphSocket socket, Condition* cnd, Mut
 
 
 // --- DECONSTRUCTOR ---
-NymphSocketListener::~NymphSocketListener() {
+NmqttClientListener::~NmqttClientListener() {
 	//
 }
 
 
 // --- RUN ---
-void NymphSocketListener::run() {
+void NmqttClientListener::run() {
 	Poco::Timespan timeout(0, 100); // 100 microsecond timeout
 	
 	NYMPH_LOG_INFORMATION("Start listening...");
 	
-	char headerBuff[8];
+	char headerBuff[5];
 	while (listen) {
 		if (socket->poll(timeout, Net::Socket::SELECT_READ)) {
 			// Attempt to receive the entire message.
-			// First validate the header (0x4452474e), then read the uint32
-			// following it. This contains the data length (LE format).
+			// First validate the first two bytes. If it's an MQTT message this will contain the
+			// command and the first byte of the message length.
+			//
+			// Unfortunately, MQTT's message length is a variable length integer, spanning 1-4 bytes.
+			// Because of this, we have to read in the first byte, see whether a second one follows
+			// by looking at the 8th bit of the byte, read that in, and so on.
+			//
+			// The smallest message we can receive is the Disconnect type, with just two bytes.
 			int received = socket->receiveBytes((void*) &headerBuff, 2);
 			if (received == 0) {
 				// Remote disconnnected. Socket should be discarded.
@@ -66,7 +73,23 @@ void NymphSocketListener::run() {
 				continue;
 			}
 			
-			UInt32 signature = *((UInt32*) &headerBuff[0]);
+			// Use the NmqttMessage class's validation feature to extract the message length from
+			// the fixed header.
+			NmqttMessage msg;
+			uint32_t msglen = 0;
+			int idx = 0; // Will be set to the index after the fixed header by the parse method.
+			while (!msg.parseHeader((char*) &headerBuff, 5, msglen, idx)) {
+				// Attempt to read more data. The index parameter is placed at the last valid
+				// byte in the headerBuff array. Append new data after this.
+				
+				NYMPH_LOG_WARNING("Too few bytes to parse header. Aborting...");
+				
+				// TODO: abort reading for now.
+				continue;
+			}
+			
+			
+			/* UInt32 signature = *((UInt32*) &headerBuff[0]);
 			if (signature != 0x4452474e) { // 'DRGN' ASCII in LE format.
 				// TODO: handle invalid header.
 				NYMPH_LOG_ERROR("Invalid header: " + NumberFormatter::formatHex(signature));
@@ -75,29 +98,32 @@ void NymphSocketListener::run() {
 			}
 			
 			UInt32 length = 0;
-			length = *((UInt32*) &headerBuff[4]);
+			length = *((UInt32*) &headerBuff[4]); */
 			/* for (int k = 4; k < 8; ++k) {
 				length = length | ((UInt8) headerBuff[k] << ((7 - k) * 8));
 			} */
 			
-			NYMPH_LOG_DEBUG("Message length: 0x" + NumberFormatter::formatHex(length));
+			NYMPH_LOG_DEBUG("Message length: 0x" + NumberFormatter::formatHex(msglen));
 			
-			char* buff = new char[length];
+			// Create new buffer for the rest of the message.
+			char* buff = new char[msglen];
 			
 			// Read the entire message into a string which is then used to
 			// construct an NymphMessage instance.
-			received = socket->receiveBytes((void*) buff, length);
-			string* binMsg;
-			if (received != length) {
+			received = socket->receiveBytes((void*) buff, msglen);
+			string binMsg;
+			binMsg.append(headerBuff, idx);
+			binMsg.append(buff, received);
+			if (received != msglen) {
 				// Handle incomplete message.
-				NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(received) + " of " + NumberFormatter::format(length));
+				NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(received) + " of " + NumberFormatter::format(msglen));
 				
 				// Loop until the rest of the message has been received.
 				// TODO: Set a maximum number of loops/timeout? Reset when 
 				// receiving data, timeout when poll times out N times?
-				binMsg = new string((const char*) buff, received);
-				binMsg->reserve(length);
-				int unread = length - received;
+				//binMsg = new string((const char*) buff, received);
+				//binMsg->reserve(msglen);
+				int unread = msglen - received;
 				while (1) {
 					if (socket->poll(timeout, Net::Socket::SELECT_READ)) {
 						char* buff1 = new char[unread];
@@ -109,15 +135,15 @@ void NymphSocketListener::run() {
 							break;
 						}
 						else if (received != unread) {
-							binMsg->append((const char*) buff1, received);
+							binMsg.append((const char*) buff1, received);
 							delete[] buff1;
 							unread -= received;
-							NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(unread) + "/" + NumberFormatter::format(length) + " unread.");
+							NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(unread) + "/" + NumberFormatter::format(msglen) + " unread.");
 							continue;
 						}
 						
 						// Full message was read. Continue with processing.
-						binMsg->append((const char*) buff1, received);
+						binMsg.append((const char*) buff1, received);
 						delete[] buff1;
 						break;
 					} // if
@@ -125,19 +151,25 @@ void NymphSocketListener::run() {
 			}
 			else { 
 				NYMPH_LOG_DEBUG("Read 0x" + NumberFormatter::formatHex(received) + " bytes.");
-				binMsg = new string(((const char*) buff), length);
+				//binMsg = new string(((const char*) buff), length);
 			}
 			
 			delete[] buff;
 			
 			// Parse the string into an NymphMessage instance.
-			NymphMessage* msg = new NymphMessage(binMsg);
-			delete binMsg;
+			msg.parseMessage(binMsg);	
+			
+			// Call the message handler callback when it's a publish message we got.
+			if (msg.getCommand() == MQTT_PUBLISH) {
+				nymphSocket.handler(nymphSocket.handle, msg.getTopic(), msg.getPayload());
+			}
+			
+			
 			
 			// The 'In Reply To' message ID in this message is now used to notify
 			// the waiting thread that a response has arrived, along with the
 			// received message.
-			UInt64 msgId = msg->getResponseId();
+			/* UInt64 msgId = msg->getResponseId();
 			if (msg->isCallback()) {
 				NYMPH_LOG_INFORMATION("Callback received. Trying to find registered method.");
 				
@@ -152,9 +184,9 @@ void NymphSocketListener::run() {
 				continue; // We're done with this request.
 			}
 			
-			NYMPH_LOG_DEBUG("Found message ID: 0x" + NumberFormatter::formatHex(msgId) + ".");
+			NYMPH_LOG_DEBUG("Found message ID: 0x" + NumberFormatter::formatHex(msgId) + "."); */
 			
-			messagesMutex.lock();
+			/* messagesMutex.lock();
 			map<UInt64, NymphRequest*>::iterator it;
 			it = messages.find(msgId);
 			if (it == messages.end()) {
@@ -163,9 +195,9 @@ void NymphSocketListener::run() {
 				messagesMutex.unlock();
 				delete msg;
 				continue;
-			}
+			} */
 			
-			NymphRequest* req = it->second;
+			/* NymphRequest* req = it->second;
 			req->mutex.lock();
 			if (msg->isReply()) { req->response = msg->getResponse(); }
 			else if (msg->isException())  {
@@ -180,7 +212,7 @@ void NymphSocketListener::run() {
 			NYMPH_LOG_INFORMATION("Signalled condition for message ID " + NumberFormatter::formatHex(msgId) + ".");
 			
 			messagesMutex.unlock();
-			delete msg;
+			delete msg; */
 		}
 		
 		// Check whether we're still initialising.
@@ -209,31 +241,7 @@ void NymphSocketListener::run() {
 
 
 // --- STOP ---
-void NymphSocketListener::stop() {
+void NmqttClientListener::stop() {
 	listen = false;
 }
 
-
-// --- ADD MESSAGE ---
-// Add a message this listener instance will be waiting for.
-bool NymphSocketListener::addMessage(NymphRequest* &request) {
-	messagesMutex.lock();
-	messages.insert(std::pair<UInt64, NymphRequest*>(request->messageId, request));
-	messagesMutex.unlock();
-	
-	return true;
-}
-
-
-// --- REMOVE MESSAGE ---
-bool NymphSocketListener::removeMessage(UInt64 messageId) {
-	messagesMutex.lock();
-	map<UInt64, NymphRequest*>::iterator it;
-	it = messages.find(messageId);
-	if (it == messages.end()) { messagesMutex.unlock(); return true; }
-	
-	messages.erase(it);
-	messagesMutex.unlock();
-	
-	return true;
-}

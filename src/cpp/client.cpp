@@ -15,6 +15,7 @@
 
 #include "client.h"
 #include "message.h"
+#include "client_listener_manager.h"
 
 #include <Poco/Net/NetException.h>
 #include <Poco/NumberFormatter.h>
@@ -80,7 +81,7 @@ bool NmqttClient::shutdown() {
 	map<int, Poco::Net::StreamSocket*>::iterator it;
 	for (it = sockets.begin(); it != sockets.end(); ++it) {
 		// Remove socket from listener.
-		//NymphListener::removeConnection(it->first);
+		NmqttClientListenerManager::removeConnection(it->first);
 		
 		// TODO: try/catch. 
 		it->second->shutdown();
@@ -89,7 +90,7 @@ bool NmqttClient::shutdown() {
 	sockets.clear();
 	socketsMutex.unlock();
 	
-	//NymphListener::stop();
+	NmqttClientListenerManager::stop();
 	
 	return true;
 }
@@ -144,7 +145,8 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,
 	socketSemaphores.insert(pair<int, Poco::Semaphore*>(lastHandle, ns.semaphore));
 	ns.data = data;
 	ns.handle = lastHandle;
-	NymphListener::addConnection(lastHandle, ns);
+	ns.handler = messageHandler;
+	NmqttClientListenerManager::addConnection(lastHandle, ns);
 	handle = lastHandle++;
 	socketsMutex.unlock();
 	
@@ -155,7 +157,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,
 	msg.setWill(will);
 	msg.setClientId(clientId);
 	
-	return sendMessage(int handle, msg.serialize());
+	return sendMessage(handle, msg.serialize());
 }
 
 
@@ -166,7 +168,9 @@ bool NmqttClient::disconnect(int handle, string &result) {
 	NmqttMessage msg(MQTT_DISCONNECT);
 	msg.setWill(will);
 	
-	return sendMessage(int handle, msg.serialize());
+	sendMessage(handle, msg.serialize());
+	
+	// FIXME: wait here?
 	
 	map<int, Poco::Net::StreamSocket*>::iterator it;
 	map<int, Poco::Semaphore*>::iterator sit;
@@ -193,7 +197,7 @@ bool NmqttClient::disconnect(int handle, string &result) {
 	if (sit->second) { sit->second->set(); }
 	
 	// Remove socket from listener.
-	NymphListener::removeConnection(it->first);
+	NmqttClientListenerManager::removeConnection(it->first);
 	
 	// Remove socket references from both maps.
 	sockets.erase(it);
@@ -257,11 +261,11 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 
 // --- PUBLISH ---
 bool NmqttClient::publish(int handle, std::string topic, std::string payload, std::string &result, 
-							MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false) {
+							MqttQoS qos, bool retain) {
 	//
 	NmqttMessage msg(MQTT_PUBLISH);
 	msg.setQoS(qos);
-	msg.setRetain(bool retain);
+	msg.setRetain(retain);
 	msg.setTopic(topic);
 	msg.setPayload(payload);
 	

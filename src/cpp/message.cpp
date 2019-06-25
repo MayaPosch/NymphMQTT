@@ -23,6 +23,8 @@
 
 #include "message.h"
 
+#include <bytebauble.h>
+
 #include <bitset>
 
 // debug
@@ -218,6 +220,48 @@ int NmqttMessage::parseMessage(std::string msg) {
 	
 	// Set new flags.
 	parseGood = true;
+	return 1;
+}
+
+
+// --- PARSE HEADER ---
+// Returns a code to indicate whether the provided buffer contains a full MQTT fixed header section.
+// Provides the parsed remaining message length and current index into the buffer where the section
+// after the fixed header starts.
+//
+// Return codes:
+// * (-1)	corrupted data.
+// * (0) 	more bytes needed.
+// * (1) 	successful parse.
+int NmqttMessage::parseHeader(char* buff, int len, uint32_t &msglen, int& idx) {
+	// Assume the first byte is fine. This will be handled later during the full message parsing.
+	// Second byte starts the variable byte integer. Check up to four bytes whether they have 
+	// bit 7 set. First three bytes means another byte follows, fourth byte means corrupted data.
+	if (len < 2) { return -1; }
+	
+	idx = 1;
+	
+	if ((buff[idx++] >> 7) & 1UL) {
+		if (len < 3) { return 0; }
+	
+		if ((buff[idx++] >> 7) & 1UL) {
+			if (len < 4) { return 0; }
+	
+			if ((buff[idx++] >> 7) & 1UL) {
+				if (len < 5) { return 0; }
+		
+				if ((buff[idx++] >> 7) & 1UL) {
+					return -1; // Special bit on final byte should never be set.
+				}
+			}
+		}
+
+	}
+	
+	// Use ByteBauble to decode this variable byte integer.
+	uint32_t pInt = *(uint32_t*) &buff[1]; // FIXME: limit?
+	idx = ByteBauble::readPackedInt(pInt, msglen);
+	
 	return 1;
 }
 
