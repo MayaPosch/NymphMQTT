@@ -8,6 +8,8 @@ This project aims to support both MQTT 3.x and 5, targeting C++ and Ada. It uses
 * Easy integration with C++ and Ada client applications.
 * Integrated MQTT broker.
 * Light-weight and versatile.
+* Minimal dependencies.
+* Cross-platform (Windows, Linux/BSD, MacOS, etc.).
 
 ## Status ##
 
@@ -17,7 +19,12 @@ The project status, for each port.
 
 * Basic client connect/subscribe/publish/receive support works.
 * Basic MQTT 5 properties support is being integrated.
+* LibPOCO as only dependency at this point.
 
 ### Ada ###
 
 The Ada port at this point is being planned. Development will likely commence after the C++ port has stabilised sufficiently.
+
+## Tests ##
+
+A number of unit/integration tests can be found in each port's folder, compilable using the provided Makefile.
