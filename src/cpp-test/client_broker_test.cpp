@@ -44,6 +44,7 @@ int main() {
 	// Create client instance, connect to remote broker.
 	NmqttClient client;
 	client.init(logFunction, NYMPH_LOG_LEVEL_TRACE);
+	client.setMessageHandler(messageHandler);
 	
 	Poco::Thread::sleep(500);
 	
