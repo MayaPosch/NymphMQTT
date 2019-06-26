@@ -25,8 +25,6 @@
 
 #include <bytebauble.h>
 
-#include <bitset>
-
 // debug
 #include <iostream>
 
@@ -87,7 +85,6 @@ int NmqttMessage::parseMessage(std::string msg) {
 	std::cout << "Length: " << msg.length() << std::endl;
 	
 	// Read out the first byte.
-	//std::bitset<8> b0((uint8_t) msg[0]);
 	command = (MqttPacketType) msg[0]; // TODO: validate range.
 	idx++;
 	
@@ -114,7 +111,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 	// Read the variable header (if present).
 	switch ((uint8_t) msg[0]) {
 		case MQTT_CONNECT: {
-			// TODO: implement
+			// TODO: implement for server.
 		}
 		
 		break;
@@ -325,13 +322,14 @@ std::string NmqttMessage::serialize() {
 			uint16_t keepAliveBE = bytebauble.toGlobal(keepAliveHost, bytebauble.getHostEndian());
 			varHeader.append((char*) &keepAliveBE, 2);
 			
-			// FIXME: ignored by broker & interpreted as Payload section?
-			/* uint8_t propertiesLen = 0x05;
-			uint8_t sessionExpIntervalId = 0x11;
-			uint32_t sessionExpInterval = 0x0A;
-			varHeader.append((char*) &propertiesLen, 1);
-			varHeader.append((char*) &sessionExpIntervalId, 1);
-			varHeader.append((char*) &sessionExpInterval, 4); */
+			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
+				uint8_t propertiesLen = 0x05;
+				uint8_t sessionExpIntervalId = 0x11;
+				uint32_t sessionExpInterval = 0x0A;
+				varHeader.append((char*) &propertiesLen, 1);
+				varHeader.append((char*) &sessionExpIntervalId, 1);
+				varHeader.append((char*) &sessionExpInterval, 4);
+			}
 			
 			// The payload section depends on previously set flags.
 			// These fields, if present, MUST appear in the order Client Identifier,

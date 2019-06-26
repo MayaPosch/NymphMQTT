@@ -23,6 +23,13 @@
 #include <bytebauble.h>
 
 
+// MQTT version
+enum MqttProtocolVersion {
+	MQTT_PROTOCOL_VERSION_4 = 0x04,
+	MQTT_PROTOCOL_VERSION_5 = 0x05
+};
+
+
 // Fixed header: first byte, bits [7-4].
 enum MqttPacketType {
 	MQTT_CONNECT = 0x10,
@@ -86,6 +93,7 @@ enum MqttReasonCodes {
 
 
 class NmqttMessage {
+	MqttProtocolVersion mqttVersion = MQTT_PROTOCOL_VERSION_4;
 	MqttPacketType command;
 	
 	// For Publish message.
@@ -124,6 +132,8 @@ public:
 	int parseMessage(std::string msg);
 	int parseHeader(char* buff, int len, uint32_t &msglen, int& idx);
 	bool valid() { return parseGood; }
+	
+	void setProtocolVersion(MqttProtocolVersion version) { mqttVersion = version; }
 	
 	// For Connect message.
 	void setWill(std::string will) { this->will = will; }
