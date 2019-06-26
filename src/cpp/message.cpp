@@ -82,7 +82,9 @@ int NmqttMessage::parseMessage(std::string msg) {
 	}
 	
 	// Debug
-	std::cout << "Message: " << std::hex << msg << std::endl;
+	std::cout << "Message(0): " << std::hex << (uint32_t) msg[0] << std::endl;
+	std::cout << "Message(1): " << std::hex << (uint32_t) msg[1] << std::endl;
+	std::cout << "Length: " << msg.length() << std::endl;
 	
 	// Read out the first byte.
 	std::bitset<8> b0((uint8_t) msg[0]);
@@ -92,11 +94,13 @@ int NmqttMessage::parseMessage(std::string msg) {
 	std::cout << "Found command: " << std::hex << (int) msg[0] << std::endl;
 		
 	// Get the message length decoded using ByteBauble's method.
-	int pblen = bytebauble.readPackedInt((uint32_t) msg[1], messageLength);
+	uint32_t pInt = (uint32_t) msg[1];
+	int pblen = bytebauble.readPackedInt(pInt, messageLength);
 	idx += pblen;
 	
 	// debug
-	std::cout << "Packed integer length: " << pblen << " bytes.\n";
+	std::cout << "Variable integer: " << std::hex << pInt << std::endl;
+	std::cout << "Packed integer length: " << pblen << " bytes." << std::endl;
 	std::cout << "Message length: " << messageLength << std::endl;
 	
 	if (pblen + 1 + messageLength != msg.length()) {
@@ -261,6 +265,7 @@ int NmqttMessage::parseHeader(char* buff, int len, uint32_t &msglen, int& idx) {
 	// Use ByteBauble to decode this variable byte integer.
 	uint32_t pInt = *(uint32_t*) &buff[1]; // FIXME: limit?
 	idx = ByteBauble::readPackedInt(pInt, msglen);
+	idx++;
 	
 	return 1;
 }
@@ -304,7 +309,7 @@ std::string NmqttMessage::serialize() {
 			varHeader.append((char*) &protNameLenBE, 2);
 			varHeader += "MQTT"; // The fixed protocol name.
 			
-			uint8_t protVersion = 5;	// Protocol version is 5.
+			uint8_t protVersion = 4;	// Protocol version is 5.
 			varHeader.append((char*) &protVersion, 1);
 			
 			uint8_t connectFlags = 0;
@@ -313,18 +318,19 @@ std::string NmqttMessage::serialize() {
 			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_QOS_L1;
 			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_RETAIN;			
 			// TODO: username & password options.
-			varHeader.append((char*) &connectFlags);
+			varHeader.append((char*) &connectFlags, 1);
 			
 			uint16_t keepAliveHost = 60; // In seconds.
 			uint16_t keepAliveBE = bytebauble.toGlobal(keepAliveHost, bytebauble.getHostEndian());
 			varHeader.append((char*) &keepAliveBE, 2);
 			
-			uint8_t propertiesLen = 0x05;
+			// FIXME: ignored by broker & interpreted as Payload section?
+			/* uint8_t propertiesLen = 0x05;
 			uint8_t sessionExpIntervalId = 0x11;
 			uint32_t sessionExpInterval = 0x0A;
 			varHeader.append((char*) &propertiesLen, 1);
 			varHeader.append((char*) &sessionExpIntervalId, 1);
-			varHeader.append((char*) &sessionExpInterval, 4);
+			varHeader.append((char*) &sessionExpInterval, 4); */
 			
 			// The payload section depends on previously set flags.
 			// These fields, if present, MUST appear in the order Client Identifier,
@@ -333,6 +339,8 @@ std::string NmqttMessage::serialize() {
 			// UTF8-encoded string with 16-bit uint BE header indicating string length.
 			uint16_t clientIdLenHost = clientId.length();
 			uint16_t clientIdLenBE = bytebauble.toGlobal(clientIdLenHost, bytebauble.getHostEndian());
+			//std::cout << "ClientID: " << clientId << ", size: " << clientIdLenHost << ", BE: " <<
+			//			std::hex << clientIdLenBE << std::endl;
 			payload.append((char*) &clientIdLenBE, 2);
 			payload += clientId;
 			
@@ -420,8 +428,9 @@ std::string NmqttMessage::serialize() {
 			uint16_t packetIdBE = bytebauble.toGlobal(packetIdHost, bytebauble.getHostEndian());
 			varHeader.append((char*) &packetIdBE, 2);
 			
-			uint8_t propLength = 0;
-			varHeader.append((char*) &propLength, 1);
+			// FIXME: MQTT 5.0
+			/* uint8_t propLength = 0;
+			varHeader.append((char*) &propLength, 1); */
 			
 			// Payload.
 			uint16_t topicLenHost = topic.length();

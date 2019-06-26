@@ -61,6 +61,7 @@ public:
 	bool disconnect(int handle, std::string &result);
 	
 	void setWill(std::string will);
+	void setClientId(std::string id) { clientId = id; }
 	//bool connect(std::string host, int port);
 	bool publish(int handle, std::string topic, std::string payload, std::string &result, 
 					MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);

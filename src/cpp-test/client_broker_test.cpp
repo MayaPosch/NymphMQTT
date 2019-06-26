@@ -45,6 +45,11 @@ int main() {
 	NmqttClient client;
 	client.init(logFunction, NYMPH_LOG_LEVEL_TRACE);
 	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Initialised client." << std::endl;
+	
+	
 	std::string result;
 	int handle;
 	if (!client.connect("localhost", 1883, handle, 0, result)) {
@@ -52,6 +57,10 @@ int main() {
 		client.shutdown();
 		return 1;
 	}
+	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Connected to broker." << std::endl;
 	
 	// Subscribe to test topic.
 	std::string topic = "a/hello";
@@ -61,6 +70,10 @@ int main() {
 		return 1;
 	}
 	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Subscribed to topic." << std::endl;
+	
 	// Publish to test topic.
 	std::string payload = "Hello World!";
 	if (!client.publish(handle, topic, payload, result)) {
@@ -69,11 +82,19 @@ int main() {
 		return 1;
 	}
 	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Published to topic." << std::endl;
+	
 	// Confirm reception test message on topic.
 	
 	// Wait until the SIGINT signal has been received.
 	gMutex.lock();
 	gCon.wait(gMutex);
+	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Disconnecting from broker..." << std::endl;
 	
 	// Clean-up.
 	if (!client.disconnect(handle, result)) {
@@ -81,6 +102,12 @@ int main() {
 		client.shutdown();
 		return 1;
 	}
+	
+	Poco::Thread::sleep(500);
+	
+	std::cout << "TEST: Shutting down client..." << std::endl;
+	
+	Poco::Thread::sleep(500);
 	
 	client.shutdown();
 	
