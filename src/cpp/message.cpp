@@ -87,7 +87,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 	std::cout << "Length: " << msg.length() << std::endl;
 	
 	// Read out the first byte.
-	std::bitset<8> b0((uint8_t) msg[0]);
+	//std::bitset<8> b0((uint8_t) msg[0]);
+	command = (MqttPacketType) msg[0]; // TODO: validate range.
 	idx++;
 	
 	// Debug

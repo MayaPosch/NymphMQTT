@@ -161,6 +161,7 @@ void NmqttClientListener::run() {
 			
 			// Call the message handler callback when it's a publish message we got.
 			if (msg.getCommand() == MQTT_PUBLISH) {
+				NYMPH_LOG_DEBUG("Calling publish message handler...");
 				nymphSocket.handler(nymphSocket.handle, msg.getTopic(), msg.getPayload());
 			}
 			
