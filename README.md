@@ -10,6 +10,7 @@ This project aims to support both MQTT 3.x and 5, targeting C++ and Ada. It uses
 * Light-weight and versatile.
 * Minimal dependencies.
 * Cross-platform (Windows, Linux/BSD, MacOS, etc.).
+* Multi-broker (multiple brokers per client).
 
 ## Status ##
 
@@ -18,6 +19,7 @@ The project status, for each port.
 ### C++ ###
 
 * Basic client connect/subscribe/publish/receive support works.
+* Connecting to multiple brokers should work.
 * Basic MQTT 5 properties support is being integrated.
 * LibPOCO as only dependency at this point.
 
