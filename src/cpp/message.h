@@ -46,7 +46,7 @@ enum MqttPacketType {
 	MQTT_PINGREQ = 0xC0,
 	MQTT_PINGRESP = 0xD0,
 	MQTT_DISCONNECT = 0xE0,
-	MQTT_AUTH = 0xF0
+	MQTT_AUTH = 0xF0		// Since MQTT 5.0.
 };
 
 

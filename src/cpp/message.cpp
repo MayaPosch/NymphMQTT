@@ -37,8 +37,9 @@ NmqttMessage::NmqttMessage() {
 
 
 // Create new message with command.
+// Sets the invalid state if setting the command failed.
 NmqttMessage::NmqttMessage(MqttPacketType type) {
-	createMessage(type);
+	if (!createMessage(type)) { parseGood = false; }
 }
 
 
@@ -56,8 +57,11 @@ NmqttMessage::~NmqttMessage() {
 
 
 // --- CREATE MESSAGE ---
-//
+// Set the command type. Returns false if the command type is invalid, for example when the current
+// protocol version does not support it.
 bool NmqttMessage::createMessage(MqttPacketType type) {
+	if (type == MQTT_AUTH && mqttVersion == MQTT_PROTOCOL_VERSION_4) { return false; }
+	
 	command = type;
 	
 	return true;
