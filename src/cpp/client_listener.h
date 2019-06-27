@@ -32,7 +32,8 @@
 struct NymphSocket {
 	Poco::Net::StreamSocket* socket;	// Pointer to the socket instance.
 	Poco::Semaphore* semaphore;			// Signals when it's safe to delete the socket.
-	NymphMessageHandler handler;		// Publish message handler.
+	//NymphMessageHandler handler;		// Publish message handler.
+	std::function<void(int, std::string, std::string)> handler;		// Publish message handler.
 	void* data;						// User data.
 	int handle;						// The Nymph internal socket handle.
 };

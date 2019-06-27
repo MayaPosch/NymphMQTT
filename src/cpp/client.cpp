@@ -69,7 +69,8 @@ void NmqttClient::setLogger(logFnc logger, int level) {
 
 // --- SET MESSAGE HANDLER ---
 // Set the callback function that will be called every time a message is received from the broker.
-void NmqttClient::setMessageHandler(NymphMessageHandler handler) {
+//void NmqttClient::setMessageHandler(NymphMessageHandler handler) {
+void NmqttClient::setMessageHandler(std::function<void(int, std::string, std::string)> handler) {
 	messageHandler = handler;
 }
 

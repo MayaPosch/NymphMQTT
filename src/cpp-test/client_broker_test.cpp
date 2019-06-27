@@ -87,8 +87,6 @@ int main() {
 	
 	std::cout << "TEST: Published to topic." << std::endl;
 	
-	// Confirm reception test message on topic.
-	
 	// Wait until the SIGINT signal has been received.
 	gMutex.lock();
 	gCon.wait(gMutex);

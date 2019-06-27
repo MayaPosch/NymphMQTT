@@ -19,6 +19,7 @@
 
 #include <string>
 #include <map>
+#include <functional>
 
 #include <Poco/Mutex.h>
 #include <Poco/Semaphore.h>
@@ -30,7 +31,7 @@
 
 
 // Function pointer signatures.
-typedef void (*NymphMessageHandler)(int handle, std::string topic, std::string payload);
+//typedef void (*NymphMessageHandler)(int handle, std::string topic, std::string payload);
 
 
 class NmqttClient {
@@ -40,7 +41,8 @@ class NmqttClient {
 	int lastHandle = 0;
 	long timeout = 3000;
 	std::string loggerName = "NmqttClient";
-	NymphMessageHandler messageHandler;
+	//NymphMessageHandler messageHandler;
+	std::function<void(int, std::string, std::string)> messageHandler;
 	
 	std::string will;
 	std::string clientId = "NymphMQTT-client";
@@ -53,7 +55,8 @@ public:
 	
 	bool init(logFnc logger, int level = NYMPH_LOG_LEVEL_TRACE, long timeout = 3000);
 	void setLogger(logFnc logger, int level);
-	void setMessageHandler(NymphMessageHandler handler);
+	//void setMessageHandler(NymphMessageHandler handler);
+	void setMessageHandler(std::function<void(int, std::string, std::string)> handler);
 	bool shutdown();
 	bool connect(std::string host, int port, int &handle, void* data, std::string &result);
 	bool connect(std::string url, int &handle, void* data, std::string &result);
