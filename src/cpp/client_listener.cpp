@@ -88,21 +88,6 @@ void NmqttClientListener::run() {
 				continue;
 			}
 			
-			
-			/* UInt32 signature = *((UInt32*) &headerBuff[0]);
-			if (signature != 0x4452474e) { // 'DRGN' ASCII in LE format.
-				// TODO: handle invalid header.
-				NYMPH_LOG_ERROR("Invalid header: " + NumberFormatter::formatHex(signature));
-				
-				continue;
-			}
-			
-			UInt32 length = 0;
-			length = *((UInt32*) &headerBuff[4]); */
-			/* for (int k = 4; k < 8; ++k) {
-				length = length | ((UInt8) headerBuff[k] << ((7 - k) * 8));
-			} */
-			
 			NYMPH_LOG_DEBUG("Message length: 0x" + NumberFormatter::formatHex(msglen));
 			
 			// Create new buffer for the rest of the message.
@@ -121,7 +106,6 @@ void NmqttClientListener::run() {
 				// Loop until the rest of the message has been received.
 				// TODO: Set a maximum number of loops/timeout? Reset when 
 				// receiving data, timeout when poll times out N times?
-				//binMsg = new string((const char*) buff, received);
 				//binMsg->reserve(msglen);
 				int unread = msglen - received;
 				while (1) {
@@ -151,7 +135,6 @@ void NmqttClientListener::run() {
 			}
 			else { 
 				NYMPH_LOG_DEBUG("Read 0x" + NumberFormatter::formatHex(received) + " bytes.");
-				//binMsg = new string(((const char*) buff), length);
 			}
 			
 			delete[] buff;
@@ -164,56 +147,6 @@ void NmqttClientListener::run() {
 				NYMPH_LOG_DEBUG("Calling publish message handler...");
 				nymphSocket.handler(nymphSocket.handle, msg.getTopic(), msg.getPayload());
 			}
-			
-			
-			
-			// The 'In Reply To' message ID in this message is now used to notify
-			// the waiting thread that a response has arrived, along with the
-			// received message.
-			/* UInt64 msgId = msg->getResponseId();
-			if (msg->isCallback()) {
-				NYMPH_LOG_INFORMATION("Callback received. Trying to find registered method.");
-				
-				if (!NymphListener::callCallback(msg, nymphSocket.data)) {
-					NYMPH_LOG_ERROR("Calling callback failed. Skipping message.");
-					delete msg;
-					continue;
-				}
-				
-				NYMPH_LOG_INFORMATION("Calling callback succeeded.");
-				delete msg;
-				continue; // We're done with this request.
-			}
-			
-			NYMPH_LOG_DEBUG("Found message ID: 0x" + NumberFormatter::formatHex(msgId) + "."); */
-			
-			/* messagesMutex.lock();
-			map<UInt64, NymphRequest*>::iterator it;
-			it = messages.find(msgId);
-			if (it == messages.end()) {
-				// Message ID not found.
-				NYMPH_LOG_ERROR("Message ID 0x" + NumberFormatter::formatHex(msgId) + " not found.");
-				messagesMutex.unlock();
-				delete msg;
-				continue;
-			} */
-			
-			/* NymphRequest* req = it->second;
-			req->mutex.lock();
-			if (msg->isReply()) { req->response = msg->getResponse(); }
-			else if (msg->isException())  {
-				req->exception = true;
-				req->response = 0;
-				req->exceptionData = msg->getException();
-			}				
-			else { req->response = 0; }
-			req->condition.signal();
-			req->mutex.unlock();
-			
-			NYMPH_LOG_INFORMATION("Signalled condition for message ID " + NumberFormatter::formatHex(msgId) + ".");
-			
-			messagesMutex.unlock();
-			delete msg; */
 		}
 		
 		// Check whether we're still initialising.

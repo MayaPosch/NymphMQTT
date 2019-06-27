@@ -431,9 +431,10 @@ std::string NmqttMessage::serialize() {
 			uint16_t packetIdBE = bytebauble.toGlobal(packetIdHost, bytebauble.getHostEndian());
 			varHeader.append((char*) &packetIdBE, 2);
 			
-			// FIXME: MQTT 5.0
-			/* uint8_t propLength = 0;
-			varHeader.append((char*) &propLength, 1); */
+			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
+				uint8_t propLength = 0;
+				varHeader.append((char*) &propLength, 1);
+			}
 			
 			// Payload.
 			uint16_t topicLenHost = topic.length();

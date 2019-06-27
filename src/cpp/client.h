@@ -30,10 +30,6 @@
 #include "message.h"
 
 
-// Function pointer signatures.
-//typedef void (*NymphMessageHandler)(int handle, std::string topic, std::string payload);
-
-
 class NmqttClient {
 	std::map<int, Poco::Net::StreamSocket*> sockets;
 	std::map<int, Poco::Semaphore*> socketSemaphores;
@@ -41,7 +37,6 @@ class NmqttClient {
 	int lastHandle = 0;
 	long timeout = 3000;
 	std::string loggerName = "NmqttClient";
-	//NymphMessageHandler messageHandler;
 	std::function<void(int, std::string, std::string)> messageHandler;
 	
 	std::string will;
@@ -55,7 +50,6 @@ public:
 	
 	bool init(logFnc logger, int level = NYMPH_LOG_LEVEL_TRACE, long timeout = 3000);
 	void setLogger(logFnc logger, int level);
-	//void setMessageHandler(NymphMessageHandler handler);
 	void setMessageHandler(std::function<void(int, std::string, std::string)> handler);
 	bool shutdown();
 	bool connect(std::string host, int port, int &handle, void* data, std::string &result);
@@ -65,7 +59,6 @@ public:
 	
 	void setWill(std::string will);
 	void setClientId(std::string id) { clientId = id; }
-	//bool connect(std::string host, int port);
 	bool publish(int handle, std::string topic, std::string payload, std::string &result, 
 					MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);
 	bool subscribe(int handle, std::string topic, std::string result);

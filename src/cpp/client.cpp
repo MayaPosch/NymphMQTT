@@ -69,7 +69,6 @@ void NmqttClient::setLogger(logFnc logger, int level) {
 
 // --- SET MESSAGE HANDLER ---
 // Set the callback function that will be called every time a message is received from the broker.
-//void NmqttClient::setMessageHandler(NymphMessageHandler handler) {
 void NmqttClient::setMessageHandler(std::function<void(int, std::string, std::string)> handler) {
 	messageHandler = handler;
 }
@@ -217,17 +216,6 @@ bool NmqttClient::disconnect(int handle, string &result) {
 void NmqttClient::setWill(std::string will) {
 	this->will = will;
 }
-
-
-/* bool NmqttClient::connect(std::string host, int port) {
-	// Create a Connect message, send it to the indicated remote.
-	NmqttMessage msg(MQTT_CONNECT);
-	msg.setWill(will);
-	
-	std::string binMsg = msg.serialize();
-	
-	// Send request to remote server.
-} */
 
 
 // --- SEND MESSAGE ---
