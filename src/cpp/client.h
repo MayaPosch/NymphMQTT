@@ -62,6 +62,7 @@ public:
 	bool publish(int handle, std::string topic, std::string payload, std::string &result, 
 					MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);
 	bool subscribe(int handle, std::string topic, std::string result);
+	bool unsubscribe(int handle, std::string topic, std::string result);
 };
 
 

@@ -270,3 +270,12 @@ bool NmqttClient::subscribe(int handle, std::string topic, std::string result) {
 	
 	return sendMessage(handle, msg.serialize());
 }
+
+
+// --- UNSUBSCRIBE ---
+bool NmqttClient::unsubscribe(int handle, std::string topic, std::string result) {
+	NmqttMessage msg(MQTT_UNSUBSCRIBE);
+	msg.setTopic(topic);
+	
+	return sendMessage(handle, msg.serialize());
+}
