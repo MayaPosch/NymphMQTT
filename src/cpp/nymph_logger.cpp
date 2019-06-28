@@ -26,7 +26,7 @@ using namespace std;
 
 // >>> NYMPH LOGGER CHANNEL <<<
 // --- CONSTRUCTOR ---
-NymphLoggerChannel::NymphLoggerChannel(logFnc function) {
+NymphLoggerChannel::NymphLoggerChannel(std::function<void(int, std::string)> function) {
 	loggerFunction = function;
 }
 
@@ -99,7 +99,7 @@ void NymphLoggerChannel::log(const Message &msg) {
 	msgStr += msg.getText() + "\t\t- ";
 	msgStr += msg.getSourceFile();
 	
-	(*loggerFunction)(level, msgStr);
+	loggerFunction(level, msgStr);
 }
 
 
@@ -117,7 +117,7 @@ Message::Priority NymphLogger::priority;
 
 // --- SET LOGGER FUNCTION ---
 // Initialises the logger and associated logging channel.
-void NymphLogger::setLoggerFunction(logFnc function) {
+void NymphLogger::setLoggerFunction(std::function<void(int, std::string)> function) {
 	AutoPtr<NymphLoggerChannel> nymphChannel(new NymphLoggerChannel(function));
 	Logger::root().setChannel(nymphChannel);
 	//loggerRef = &Logger::get("NymphLogger");

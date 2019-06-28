@@ -48,8 +48,8 @@ class NmqttClient {
 public:
 	NmqttClient();
 	
-	bool init(logFnc logger, int level = NYMPH_LOG_LEVEL_TRACE, long timeout = 3000);
-	void setLogger(logFnc logger, int level);
+	bool init(std::function<void(int, std::string)> logger, int level = NYMPH_LOG_LEVEL_TRACE, long timeout = 3000);
+	void setLogger(std::function<void(int, std::string)> logger, int level);
 	void setMessageHandler(std::function<void(int, std::string, std::string)> handler);
 	bool shutdown();
 	bool connect(std::string host, int port, int &handle, void* data, std::string &result);

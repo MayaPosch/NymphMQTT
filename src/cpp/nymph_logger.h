@@ -19,6 +19,7 @@
 #include <Poco/Channel.h>
 
 #include <string>
+#include <functional>
 
 
 enum NymphLogLevels {
@@ -68,14 +69,14 @@ enum NymphLogLevels {
 
 
 // Function pointer typedef for the function-based logger.
-typedef void (*logFnc)(int, std::string);
+//typedef void (*logFnc)(int, std::string);
 
 
 class NymphLoggerChannel : public Poco::Channel {
-	logFnc loggerFunction;
+	std::function<void(int, std::string)> loggerFunction;
 	
 public:
-	NymphLoggerChannel(logFnc function);
+	NymphLoggerChannel(std::function<void(int, std::string)> function);
 	~NymphLoggerChannel();
 	
 	void close();
@@ -91,7 +92,7 @@ class NymphLogger {
 public:
 	static Poco::Message::Priority priority;
 	
-	static void setLoggerFunction(logFnc function);
+	static void setLoggerFunction(std::function<void(int, std::string)> function);
 	static void setLogLevel(Poco::Message::Priority priority);
 	static Poco::Logger& logger();
 	static Poco::Logger& logger(std::string &name);

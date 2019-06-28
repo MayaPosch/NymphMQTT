@@ -42,7 +42,7 @@ NmqttClient::NmqttClient() {
 // NYMPH_LOG_LEVEL_INFO,
 // NYMPH_LOG_LEVEL_DEBUG,
 // NYMPH_LOG_LEVEL_TRACE
-bool NmqttClient::init(logFnc logger, int level, long timeout) {
+bool NmqttClient::init(std::function<void(int, std::string)> logger, int level, long timeout) {
 	//NymphRemoteServer::timeout = timeout; // FIXME
 	setLogger(logger, level);
 	
@@ -61,7 +61,7 @@ bool NmqttClient::init(logFnc logger, int level, long timeout) {
 // NYMPH_LOG_LEVEL_INFO,
 // NYMPH_LOG_LEVEL_DEBUG,
 // NYMPH_LOG_LEVEL_TRACE
-void NmqttClient::setLogger(logFnc logger, int level) {
+void NmqttClient::setLogger(std::function<void(int, std::string)> logger, int level) {
 	NymphLogger::setLoggerFunction(logger);
 	NymphLogger::setLogLevel((Poco::Message::Priority) level);
 }
