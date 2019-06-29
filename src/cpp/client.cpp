@@ -160,7 +160,11 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	msg.setWill(will);
 	msg.setClientId(clientId);
 	
-	sendMessage(handle, msg.serialize());
+	NYMPH_LOG_INFORMATION("Sending CONNECT message.");
+	
+	if (!sendMessage(handle, msg.serialize())) {
+		return false;
+	}
 	
 	// Wait for condition.
 	connectMtx.lock();
@@ -181,6 +185,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 bool NmqttClient::disconnect(int handle, string &result) {	
 	
 	// Create a Disconnect message, send it to the indicated remote.
+	NYMPH_LOG_INFORMATION("Sending DISCONNECT message.");
 	NmqttMessage msg(MQTT_DISCONNECT);
 	msg.setWill(will);
 	
@@ -289,6 +294,8 @@ bool NmqttClient::publish(int handle, std::string topic, std::string payload, st
 	msg.setTopic(topic);
 	msg.setPayload(payload);
 	
+	NYMPH_LOG_INFORMATION("Sending PUBLISH message.");
+	
 	return sendMessage(handle, msg.serialize());
 }
 
@@ -299,6 +306,8 @@ bool NmqttClient::subscribe(int handle, std::string topic, std::string result) {
 	NmqttMessage msg(MQTT_SUBSCRIBE);
 	msg.setTopic(topic);
 	
+	NYMPH_LOG_INFORMATION("Sending SUBSCRIBE message.");
+	
 	return sendMessage(handle, msg.serialize());
 }
 
@@ -307,6 +316,8 @@ bool NmqttClient::subscribe(int handle, std::string topic, std::string result) {
 bool NmqttClient::unsubscribe(int handle, std::string topic, std::string result) {
 	NmqttMessage msg(MQTT_UNSUBSCRIBE);
 	msg.setTopic(topic);
+	
+	NYMPH_LOG_INFORMATION("Sending UNSUBSCRIBE message.");
 	
 	return sendMessage(handle, msg.serialize());
 }
