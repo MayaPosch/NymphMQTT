@@ -53,8 +53,10 @@ int main() {
 	
 	std::string result;
 	int handle;
-	if (!client.connect("localhost", 1883, handle, 0, result)) {
+	NmqttBrokerConnection conn;
+	if (!client.connect("localhost", 1883, handle, 0, conn, result)) {
 		std::cout << "Failed to connect to broker: " << result << std::endl;
+		std::cout << "Got reason code: 0x" << (int) conn.responseCode << std::endl;
 		client.shutdown();
 		return 1;
 	}
@@ -62,6 +64,7 @@ int main() {
 	Poco::Thread::sleep(500);
 	
 	std::cout << "TEST: Connected to broker." << std::endl;
+	std::cout << "Got reason code: 0x" << (int) conn.responseCode << std::endl;
 	
 	// Subscribe to test topic.
 	std::string topic = "a/hello";

@@ -78,8 +78,15 @@ enum MqttConnectFlags {
 };
 
 
+// Code 4 marked reason codes are specific to MQTT v3.1.x.
 enum MqttReasonCodes {
 	MQTT_CODE_SUCCESS = 0x0,
+	MQTT_CODE_4_WRONG_PROTOCOL_VERSION = 0x01,
+	MQTT_CODE_4_CLIENT_ID_REJECTED = 0x02,
+	MQTT_CODE_4_SERVER_UNAVAILABLE = 0x03,
+	MQTT_CODE_4_BAD_USERNAME_PASSWORD = 0x04,
+	MQTT_CODE_4_NOT_AUTHORIZED = 0x05,
+	MQTT_CODE_UNSPECIFIED = 0x80,
 	MQTT_CODE_MALFORMED_PACKET = 0x81,
 	MQTT_CODE_PROTOCOL_ERROR = 0x82,
 	MQTT_CODE_RECEIVE_MAX_EXCEEDED = 0x93,
@@ -151,6 +158,7 @@ public:
 	std::string getTopic() { return topic; }
 	std::string getPayload() { return payload; }
 	std::string getWill() { return will; }
+	bool getSessionPresent() { return sessionPresent; }
 	MqttReasonCodes getReasonCode() { return reasonCode; }
 	
 	std::string serialize();

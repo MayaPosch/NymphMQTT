@@ -14,7 +14,6 @@
 
 
 #include "client_listener.h"
-#include "message.h"
 #include "nymph_logger.h"
 
 using namespace std;
@@ -94,7 +93,7 @@ void NmqttClientListener::run() {
 			char* buff = new char[msglen];
 			
 			// Read the entire message into a string which is then used to
-			// construct an NymphMessage instance.
+			// construct an NmqttMessage instance.
 			received = socket->receiveBytes((void*) buff, msglen);
 			string binMsg;
 			binMsg.append(headerBuff, idx);
@@ -144,8 +143,13 @@ void NmqttClientListener::run() {
 			
 			// Call the message handler callback when it's a publish message we got.
 			if (msg.getCommand() == MQTT_PUBLISH) {
-				NYMPH_LOG_DEBUG("Calling publish message handler...");
+				NYMPH_LOG_DEBUG("Calling PUBLISH message handler...");
 				nymphSocket.handler(nymphSocket.handle, msg.getTopic(), msg.getPayload());
+			}
+			else if (msg.getCommand() == MQTT_CONNACK) {
+				NYMPH_LOG_DEBUG("Calling CONNACK message handler...");
+				nymphSocket.connackHandler(nymphSocket.handle, msg.getSessionPresent(),
+																msg.getReasonCode());
 			}
 		}
 		

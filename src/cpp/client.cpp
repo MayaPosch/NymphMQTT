@@ -100,21 +100,22 @@ bool NmqttClient::shutdown() {
 // Create a new connection with the remote MQTT server and return a handle for
 // the connection.
 bool NmqttClient::connect(string host, int port, int &handle, void* data, 
-															string &result) {
+							NmqttBrokerConnection &conn, string &result) {
 	Poco::Net::SocketAddress sa(host, port);
-	return connect(sa, handle, data, result);
+	return connect(sa, handle, data, conn, result);
 }
 
 
 bool NmqttClient::connect(string url, int &handle, void* data, 
-															string &result) {
+							NmqttBrokerConnection &conn, string &result) {
 	Poco::Net::SocketAddress sa(url);
-	return connect(sa, handle, data, result);
+	return connect(sa, handle, data, conn, result);
 }
 
 
-bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle, 
-												void* data, string &result) {
+bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
+							NmqttBrokerConnection &conn, string &result) {
+	using namespace std::placeholders;
 	Poco::Net::StreamSocket* socket;
 	try {
 		socket = new Poco::Net::StreamSocket(sa);
@@ -146,6 +147,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,
 	ns.data = data;
 	ns.handle = lastHandle;
 	ns.handler = messageHandler;
+	ns.connackHandler = std::bind(&NmqttClient::connackHandler, this, _1, _2, _3);
 	NmqttClientListenerManager::addConnection(lastHandle, ns);
 	handle = lastHandle++;
 	socketsMutex.unlock();
@@ -153,11 +155,25 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,
 	NYMPH_LOG_DEBUG("Added new connection with handle: " + NumberFormatter::format(handle));
 	
 	// Send Connect message using the previously set data.
+	brokerConn = 0;
 	NmqttMessage msg(MQTT_CONNECT);
 	msg.setWill(will);
 	msg.setClientId(clientId);
 	
-	return sendMessage(handle, msg.serialize());
+	sendMessage(handle, msg.serialize());
+	
+	// Wait for condition.
+	connectMtx.lock();
+	brokerConn = &conn;
+	long timeout = 3000; // 3 second connection timeout.
+	if (!connectCnd.tryWait(connectMtx, timeout)) {
+		NYMPH_LOG_ERROR("Timeout while trying to connect to broker.");
+		brokerConn = 0;
+		connectMtx.unlock();
+		return false;
+	}
+	
+	return true;
 }
 
 
@@ -245,6 +261,21 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 	}
 	
 	return true;
+}
+
+
+// --- CONNACK HANDLER ---
+// Callback for incoming CONNACK packets.
+void NmqttClient::connackHandler(int handle, bool sessionPresent, MqttReasonCodes code) {
+	// Set the data
+	if (brokerConn) {
+		brokerConn->handle = handle;
+		brokerConn->sessionPresent = sessionPresent;
+		brokerConn->responseCode = code;
+	}
+	
+	// Signal the condition variable.
+	connectCnd.signal();
 }
 
 

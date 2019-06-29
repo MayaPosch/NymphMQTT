@@ -121,6 +121,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		break;
 		case MQTT_CONNACK: {
 			// Basic parse: just get the variable header up till the reason code.
+			// For MQTT 5 we also need to read out the properties that follow after the reason code.
 			sessionPresent = msg[idx++];
 			reasonCode = (MqttReasonCodes) msg[idx++];
 		}

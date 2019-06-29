@@ -23,6 +23,7 @@
 #include <Poco/Condition.h>
 
 #include "client.h"
+#include "message.h"
 
 #include <map>
 #include <string>
@@ -32,8 +33,8 @@
 struct NymphSocket {
 	Poco::Net::StreamSocket* socket;	// Pointer to the socket instance.
 	Poco::Semaphore* semaphore;			// Signals when it's safe to delete the socket.
-	//NymphMessageHandler handler;		// Publish message handler.
 	std::function<void(int, std::string, std::string)> handler;		// Publish message handler.
+	std::function<void(int, bool, MqttReasonCodes)> connackHandler; // CONNACK handler.
 	void* data;						// User data.
 	int handle;						// The Nymph internal socket handle.
 };
