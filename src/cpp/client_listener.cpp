@@ -15,6 +15,8 @@
 
 #include "client_listener.h"
 #include "nymph_logger.h"
+#include "dispatcher.h"
+#include "request.h"
 
 using namespace std;
 
@@ -24,12 +26,12 @@ using namespace Poco;
 
 
 // --- CONSTRUCTOR ---
-NmqttClientListener::NmqttClientListener(NymphSocket socket, Condition* cnd, Mutex* mtx) {
+NmqttClientListener::NmqttClientListener(int handle, Condition* cnd, Mutex* mtx) {
 	loggerName = "NmqttClientListener";
 	listen = true;
 	init = true;
-	this->nymphSocket = socket;
-	this->socket = socket.socket;
+	this->nymphSocket = NmqttConnections::getSocket(handle);
+	this->socket = nymphSocket->socket;
 	this->readyCond = cnd;
 	this->readyMutex = mtx;
 }
@@ -89,68 +91,71 @@ void NmqttClientListener::run() {
 			
 			NYMPH_LOG_DEBUG("Message length: 0x" + NumberFormatter::formatHex(msglen));
 			
-			// Create new buffer for the rest of the message.
-			char* buff = new char[msglen];
-			
-			// Read the entire message into a string which is then used to
-			// construct an NmqttMessage instance.
-			received = socket->receiveBytes((void*) buff, msglen);
 			string binMsg;
-			binMsg.append(headerBuff, idx);
-			binMsg.append(buff, received);
-			if (received != msglen) {
-				// Handle incomplete message.
-				NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(received) + " of " + NumberFormatter::format(msglen));
+			if (msglen > 0) {
+				// Create new buffer for the rest of the message.
+				char* buff = new char[msglen];
 				
-				// Loop until the rest of the message has been received.
-				// TODO: Set a maximum number of loops/timeout? Reset when 
-				// receiving data, timeout when poll times out N times?
-				//binMsg->reserve(msglen);
-				int unread = msglen - received;
-				while (1) {
-					if (socket->poll(timeout, Net::Socket::SELECT_READ)) {
-						char* buff1 = new char[unread];
-						received = socket->receiveBytes((void*) buff1, unread);
-						if (received == 0) {
-							// Remote disconnnected. Socket should be discarded.
-							NYMPH_LOG_INFORMATION("Received remote disconnected notice. Terminating listener thread.");
-							delete[] buff1;
-							break;
-						}
-						else if (received != unread) {
+				// Read the entire message into a string which is then used to
+				// construct an NmqttMessage instance.
+				received = socket->receiveBytes((void*) buff, msglen);
+				binMsg.append(headerBuff, idx);
+				binMsg.append(buff, received);
+				if (received != msglen) {
+					// Handle incomplete message.
+					NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(received) + " of " + NumberFormatter::format(msglen));
+					
+					// Loop until the rest of the message has been received.
+					// TODO: Set a maximum number of loops/timeout? Reset when 
+					// receiving data, timeout when poll times out N times?
+					//binMsg->reserve(msglen);
+					int unread = msglen - received;
+					while (1) {
+						if (socket->poll(timeout, Net::Socket::SELECT_READ)) {
+							char* buff1 = new char[unread];
+							received = socket->receiveBytes((void*) buff1, unread);
+							if (received == 0) {
+								// Remote disconnnected. Socket should be discarded.
+								NYMPH_LOG_INFORMATION("Received remote disconnected notice. Terminating listener thread.");
+								delete[] buff1;
+								break;
+							}
+							else if (received != unread) {
+								binMsg.append((const char*) buff1, received);
+								delete[] buff1;
+								unread -= received;
+								NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(unread) + "/" + NumberFormatter::format(msglen) + " unread.");
+								continue;
+							}
+							
+							// Full message was read. Continue with processing.
 							binMsg.append((const char*) buff1, received);
 							delete[] buff1;
-							unread -= received;
-							NYMPH_LOG_WARNING("Incomplete message: " + NumberFormatter::format(unread) + "/" + NumberFormatter::format(msglen) + " unread.");
-							continue;
-						}
-						
-						// Full message was read. Continue with processing.
-						binMsg.append((const char*) buff1, received);
-						delete[] buff1;
-						break;
-					} // if
-				} //while
+							break;
+						} // if
+					} //while
+				}
+				else { 
+					NYMPH_LOG_DEBUG("Read 0x" + NumberFormatter::formatHex(received) + " bytes.");
+				}
+				
+				delete[] buff;
 			}
-			else { 
-				NYMPH_LOG_DEBUG("Read 0x" + NumberFormatter::formatHex(received) + " bytes.");
+			else {
+				//
+				binMsg.append(headerBuff, idx);
 			}
 			
-			delete[] buff;
-			
-			// Parse the string into an NymphMessage instance.
+			// Parse the string into an NmqttMessage instance.
 			msg.parseMessage(binMsg);	
 			
-			// Call the message handler callback when it's a publish message we got.
-			if (msg.getCommand() == MQTT_PUBLISH) {
-				NYMPH_LOG_DEBUG("Calling PUBLISH message handler...");
-				nymphSocket.handler(nymphSocket.handle, msg.getTopic(), msg.getPayload());
-			}
-			else if (msg.getCommand() == MQTT_CONNACK) {
-				NYMPH_LOG_DEBUG("Calling CONNACK message handler...");
-				nymphSocket.connackHandler(nymphSocket.handle, msg.getSessionPresent(),
-																msg.getReasonCode());
-			}
+			NYMPH_LOG_DEBUG("Got command: 0x" + Poco::NumberFormatter::formatHex(msg.getCommand()));
+			
+			// Call the message handler callback when one exists for this type of message.
+			// TODO: refactor for Dispatcher.
+			Request* req = new Request;
+			req->setMessage(nymphSocket->handle, msg);
+			Dispatcher::addRequest(req);
 		}
 		
 		// Check whether we're still initialising.
@@ -170,10 +175,10 @@ void NmqttClientListener::run() {
 	// Clean-up.
 	delete readyCond;
 	delete readyMutex;
-	nymphSocket.semaphore->wait();	// Wait for the connection to be closed.
+	nymphSocket->semaphore->wait();	// Wait for the connection to be closed.
 	delete socket;
-	delete nymphSocket.semaphore;
-	nymphSocket.semaphore = 0;
+	delete nymphSocket->semaphore;
+	nymphSocket->semaphore = 0;
 	delete this; // Call the destructor ourselves.
 }
 

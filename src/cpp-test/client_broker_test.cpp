@@ -12,6 +12,8 @@
 #include <string>
 #include <iostream>
 
+#include <sstream>
+
 #include <Poco/Condition.h>
 #include <Poco/Thread.h>
 
@@ -41,6 +43,10 @@ void messageHandler(int handle, std::string topic, std::string payload) {
 
 
 int main() {
+	// Do locale initialisation here to appease Valgrind (prevent data-race reporting).
+	std::ostringstream dummy;
+	dummy << 0;
+	
 	// Create client instance, connect to remote broker.
 	NmqttClient client;
 	client.init(logFunction, NYMPH_LOG_LEVEL_TRACE);

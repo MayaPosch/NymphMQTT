@@ -22,6 +22,7 @@
 
 
 #include "message.h"
+#include "nymph_logger.h"
 
 #include <bytebauble.h>
 
@@ -89,11 +90,11 @@ int NmqttMessage::parseMessage(std::string msg) {
 	std::cout << "Length: " << msg.length() << std::endl;
 	
 	// Read out the first byte.
-	command = (MqttPacketType) msg[0]; // TODO: validate range.
+	command = (MqttPacketType) static_cast<uint8_t>(msg[0]); // TODO: validate range.
 	idx++;
 	
 	// Debug
-	std::cout << "Found command: " << std::hex << (int) msg[0] << std::endl;
+	std::cout << "Found command: 0x" << std::hex << command << std::endl;
 		
 	// Get the message length decoded using ByteBauble's method.
 	uint32_t pInt = (uint32_t) msg[1];
@@ -120,6 +121,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_CONNACK: {
+			NYMPH_LOG_INFORMATION("Received CONNACK message.");
+			
 			// Basic parse: just get the variable header up till the reason code.
 			// For MQTT 5 we also need to read out the properties that follow after the reason code.
 			sessionPresent = msg[idx++];
@@ -128,6 +131,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PUBLISH: {
+			NYMPH_LOG_INFORMATION("Received PUBLISH message.");
+			
 			// Expect just the topic length (two bytes) and the topic string.
 			// UTF-8 strings in MQTT have a big-endian, two-byte length header.
 			uint16_t lenBE = *((uint16_t*) &msg[idx]);
@@ -164,6 +169,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PUBACK: {
+			NYMPH_LOG_INFORMATION("Received PUBACK message.");
+			
 			//
 		}
 		
@@ -189,6 +196,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_SUBACK: {
+			NYMPH_LOG_INFORMATION("Received SUBACK message.");
+			
 			//
 		}
 		
@@ -209,12 +218,16 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PINGRESP: {
-			//
+			NYMPH_LOG_INFORMATION("Received PINGRESP message.");
+			
+			// A Ping response has no variable header and no payload.
 		}
 		
 		break;
 		case MQTT_DISCONNECT: {
-			//
+			NYMPH_LOG_INFORMATION("Received DISCONNECT message.");
+			
+			// A disconnect message has no variable header and no payload.
 		}
 		
 		break;
@@ -466,17 +479,17 @@ std::string NmqttMessage::serialize() {
 		
 		break;
 		case MQTT_PINGREQ: {
-			//
+			// This command has no variable header and no payload.
 		}
 		
 		break;
 		case MQTT_PINGRESP: {
-			//
+			// A ping response has no variable header and no payload.
 		}
 		
 		break;
 		case MQTT_DISCONNECT: {
-			//
+			// A disconnect message has no variable header and no payload.
 		}
 		
 		break;

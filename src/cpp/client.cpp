@@ -14,8 +14,9 @@
 
 
 #include "client.h"
-#include "message.h"
 #include "client_listener_manager.h"
+#include "connections.h"
+#include "dispatcher.h"
 
 #include <Poco/Net/NetException.h>
 #include <Poco/NumberFormatter.h>
@@ -42,9 +43,15 @@ NmqttClient::NmqttClient() {
 // NYMPH_LOG_LEVEL_INFO,
 // NYMPH_LOG_LEVEL_DEBUG,
 // NYMPH_LOG_LEVEL_TRACE
-bool NmqttClient::init(std::function<void(int, std::string)> logger, int level, long timeout) {
+bool NmqttClient::init(std::function<void(int, std::string)> logger, int level, long timeout) {	
 	//NymphRemoteServer::timeout = timeout; // FIXME
 	setLogger(logger, level);
+	
+	// Get the number of concurrent threads supported by the system we are running on.
+	int numThreads = std::thread::hardware_concurrency();
+	
+	// Initialise the Dispatcher with the maximum number of threads as worker count.
+	Dispatcher::init(numThreads);
 	
 	return true;
 }
@@ -148,7 +155,9 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	ns.handle = lastHandle;
 	ns.handler = messageHandler;
 	ns.connackHandler = std::bind(&NmqttClient::connackHandler, this, _1, _2, _3);
-	NmqttClientListenerManager::addConnection(lastHandle, ns);
+	ns.pingrespHandler = std::bind(&NmqttClient::pingrespHandler, this, _1);
+	NmqttConnections::addSocket(ns);
+	NmqttClientListenerManager::addConnection(lastHandle);
 	handle = lastHandle++;
 	socketsMutex.unlock();
 	
@@ -177,12 +186,39 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 		return false;
 	}
 	
+	// Start ping timer. Use the Keep Alive value used during the Connect minus one second as 
+	// duration.
+	// FIXME: check that the Keep Alive value isn't less than one second. Subtract milliseconds if 
+	// less than 10 seconds or so.
+	int keepAlive = 60; // In seconds. TODO: use connection Keep Alive value.
+	pingTimer = new NmqttTimer((keepAlive - 2) * 1000, (keepAlive - 2) * 1000);
+	pingCallback = new Poco::TimerCallback<NmqttClient>(*this, &NmqttClient::pingreqHandler);
+	
+	try {
+		pingTimer->stop();
+		pingTimer->start(*pingCallback);
+		NYMPH_LOG_INFORMATION("Started ping timer...");
+	}
+	catch (Poco::IllegalStateException &e) {
+		NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
+		return false;
+	}
+	catch (...) {
+		NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
+		return false;
+	}
+	
+	pingTimer->setHandle(handle);
+	
 	return true;
 }
 
 
 // --- DISCONNECT ---
-bool NmqttClient::disconnect(int handle, string &result) {	
+bool NmqttClient::disconnect(int handle, string &result) {
+	// Stop the Pingreq timer and delete it.
+	delete pingTimer;
+	delete pingCallback;
 	
 	// Create a Disconnect message, send it to the indicated remote.
 	NYMPH_LOG_INFORMATION("Sending DISCONNECT message.");
@@ -246,7 +282,7 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 	socketsMutex.lock();
 	it = sockets.find(handle);
 	if (it == sockets.end()) { 
-		//result = "Provided handle " + NumberFormatter::format(handle) + " was not found.";
+		NYMPH_LOG_ERROR("Provided handle " + NumberFormatter::format(handle) + " was not found.");
 		socketsMutex.unlock();
 	}
 	
@@ -254,15 +290,34 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 		int ret = it->second->sendBytes(((const void*) binMsg.c_str()), binMsg.length());
 		if (ret != binMsg.length()) {
 			// Handle error.
-			//result = "Failed to send message: ";		
+			NYMPH_LOG_ERROR("Failed to send message. Not all bytes sent.");
 			return false;
 		}
 		
 		NYMPH_LOG_DEBUG("Sent " + NumberFormatter::format(ret) + " bytes.");
 	}
 	catch (Poco::Exception &e) {
-		//result = "Failed to send message: " + e.message();
+		NYMPH_LOG_ERROR("Failed to send message: " + e.message());
 		return false;
+	}
+	
+	socketsMutex.unlock();
+	
+	// Reset Ping timer.
+	if (pingTimer) {
+		try {
+			pingTimer->stop();
+			pingTimer->start(*pingCallback);
+			NYMPH_LOG_INFORMATION("Started ping timer...");
+		}
+		catch (Poco::IllegalStateException &e) {
+			NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
+			return false;
+		}
+		catch (...) {
+			NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
+			return false;
+		}
 	}
 	
 	return true;
@@ -281,6 +336,60 @@ void NmqttClient::connackHandler(int handle, bool sessionPresent, MqttReasonCode
 	
 	// Signal the condition variable.
 	connectCnd.signal();
+}
+
+
+// --- PINGREQ HANDLER ---
+// Callback for the internal timer to send a ping request to the broker to keep the connection
+// alive.
+void NmqttClient::pingreqHandler(Poco::Timer &t) {
+	//
+	NmqttMessage msg(MQTT_PINGREQ);
+	
+	NmqttTimer* s = dynamic_cast<NmqttTimer*>(&t);
+	
+	NYMPH_LOG_INFORMATION("Sending PINGREQ message for handle: " + 
+							Poco::NumberFormatter::format(s->getHandle()));
+	
+	if (!sendMessage(s->getHandle(), msg.serialize())) {
+		NYMPH_LOG_ERROR("Failed to send PINGREQ message.");
+	}
+}
+
+
+// --- PINGRESP HANDLER ---
+// Called when a PINGACK message arrives. Reset the ping timer for this handle.
+// TODO: implement per handle timer.
+void NmqttClient::pingrespHandler(int handle) {
+	NYMPH_LOG_DEBUG("PINGRESP handler got called.");
+	
+	long keepAlive = 58 * 1000; // TODO: use global value.
+	
+	// Reset Ping timer.
+	if (pingTimer) {
+		NYMPH_LOG_DEBUG("Trying to restart the timer...");
+		try {
+			NYMPH_LOG_DEBUG("Stopping the timer...");
+			//delete pingTimer;
+			pingTimer = new NmqttTimer(keepAlive, 0);
+			//pingTimer->restart(0);
+			NYMPH_LOG_DEBUG("Stopped the timer.");
+			NYMPH_LOG_DEBUG("Starting the timer...");
+			//pingTimer->setStartInterval(keepAlive);
+			pingTimer->start(*pingCallback);
+			NYMPH_LOG_INFORMATION("Started ping timer.");
+		}
+		catch (Poco::IllegalStateException &e) {
+			NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
+			return;
+		}
+		catch (...) {
+			NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
+			return;
+		}
+		
+		NYMPH_LOG_DEBUG("Successfully restarted the timer.");
+	}
 }
 
 

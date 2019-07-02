@@ -48,7 +48,7 @@ void NmqttClientListenerManager::stop() {
 
 
 // --- ADD CONNECTION ---
-bool NmqttClientListenerManager::addConnection(int handle, NymphSocket socket) {
+bool NmqttClientListenerManager::addConnection(int handle) {
 	NYMPH_LOG_INFORMATION("Adding connection. Handle: " + NumberFormatter::format(handle) + ".");
 	
 	// Create new thread for NmqttListener instance which handles
@@ -57,7 +57,7 @@ bool NmqttClientListenerManager::addConnection(int handle, NymphSocket socket) {
 	Poco::Mutex* mtx = new Poco::Mutex;
 	long timeout = 1000; // 1 second
 	mtx->lock();
-	NmqttClientListener* esl = new NmqttClientListener(socket, cnd, mtx);
+	NmqttClientListener* esl = new NmqttClientListener(handle, cnd, mtx);
 	Poco::Thread* thread = new Poco::Thread;
 	thread->start(*esl);
 	if (!cnd->tryWait(*mtx, timeout)) {

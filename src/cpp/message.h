@@ -102,6 +102,7 @@ enum MqttReasonCodes {
 class NmqttMessage {
 	MqttProtocolVersion mqttVersion = MQTT_PROTOCOL_VERSION_4;
 	MqttPacketType command;
+	std::string loggerName = "NmqttMessage";
 	
 	// For Publish message.
 	bool duplicateMessage = false;

@@ -33,7 +33,7 @@ class NmqttClientListenerManager {
 public:
 	static void stop();
 	
-	static bool addConnection(int handle, NymphSocket socket);
+	static bool addConnection(int handle);
 	static bool removeConnection(int handle);
 };
 

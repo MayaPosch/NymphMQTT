@@ -24,33 +24,23 @@
 
 #include "client.h"
 #include "message.h"
+#include "connections.h"
 
 #include <map>
 #include <string>
 
 
-// TYPES
-struct NymphSocket {
-	Poco::Net::StreamSocket* socket;	// Pointer to the socket instance.
-	Poco::Semaphore* semaphore;			// Signals when it's safe to delete the socket.
-	std::function<void(int, std::string, std::string)> handler;		// Publish message handler.
-	std::function<void(int, bool, MqttReasonCodes)> connackHandler; // CONNACK handler.
-	void* data;						// User data.
-	int handle;						// The Nymph internal socket handle.
-};
-
-
 class NmqttClientListener : public Poco::Runnable {
 	std::string loggerName;
 	bool listen;
-	NymphSocket nymphSocket;
+	NymphSocket* nymphSocket;
 	Poco::Net::StreamSocket* socket;
 	bool init;
 	Poco::Condition* readyCond;
 	Poco::Mutex* readyMutex;
 	
 public:
-	NmqttClientListener(NymphSocket socket, Poco::Condition* cond, Poco::Mutex* mtx);
+	NmqttClientListener(int handle , Poco::Condition* cond, Poco::Mutex* mtx);
 	~NmqttClientListener();
 	void run();
 	void stop();

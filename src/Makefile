@@ -5,7 +5,7 @@
 SOURCES := $(wildcard cpp/*.cpp)
 OBJECTS := $(addprefix obj/,$(notdir) $(SOURCES:.cpp=.o))
 LIBS := -lPocoNet -lPocoUtil -lPocoFoundation -lPocoJSON
-CFLAGS := -std=c++11 -g3 -O0
+CFLAGS := -std=c++11 -g3 -O0 -pthread
 
 # Check for MinGW and patch up POCO
 # The OS variable is only set on Windows.

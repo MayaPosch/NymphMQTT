@@ -26,9 +26,11 @@
 #include <Poco/Net/SocketAddress.h>
 #include <Poco/Net/StreamSocket.h>
 #include <Poco/Condition.h>
+//#include <Poco/Timer.h>
 
 #include "nymph_logger.h"
 #include "message.h"
+#include "timer.h"
 
 
 struct NmqttBrokerConnection {
@@ -50,6 +52,9 @@ class NmqttClient {
 	std::function<void(int, std::string, std::string)> messageHandler;
 	Poco::Condition connectCnd;
 	Poco::Mutex connectMtx;
+	//Poco::Timer* pingTimer = 0;
+	NmqttTimer* pingTimer = 0;
+	Poco::TimerCallback<NmqttClient>* pingCallback = 0;
 	NmqttBrokerConnection* brokerConn = 0;
 	
 	std::string will;
@@ -57,7 +62,8 @@ class NmqttClient {
 	
 	bool sendMessage(int handle, std::string binMsg);
 	void connackHandler(int handle, bool sessionPresent, MqttReasonCodes code);
-	//bool processCallbacks();
+	void pingreqHandler(Poco::Timer &t);
+	void pingrespHandler(int handle);
 	
 public:
 	NmqttClient();
