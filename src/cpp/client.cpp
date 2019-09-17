@@ -196,6 +196,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	
 	try {
 		pingTimer->stop();
+		pingTimer->setHandle(handle);
 		pingTimer->start(*pingCallback);
 		NYMPH_LOG_INFORMATION("Started ping timer...");
 	}
@@ -208,7 +209,6 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 		return false;
 	}
 	
-	pingTimer->setHandle(handle);
 	
 	return true;
 }
@@ -284,6 +284,7 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 	if (it == sockets.end()) { 
 		NYMPH_LOG_ERROR("Provided handle " + NumberFormatter::format(handle) + " was not found.");
 		socketsMutex.unlock();
+		return false;
 	}
 	
 	try {
@@ -372,6 +373,7 @@ void NmqttClient::pingrespHandler(int handle) {
 			NYMPH_LOG_DEBUG("Stopping the timer...");
 			//delete pingTimer;
 			pingTimer = new NmqttTimer(keepAlive, 0);
+			pingTimer->setHandle(handle);
 			//pingTimer->restart(0);
 			NYMPH_LOG_DEBUG("Stopped the timer.");
 			NYMPH_LOG_DEBUG("Starting the timer...");
