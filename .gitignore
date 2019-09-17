@@ -2,4 +2,6 @@
 *.txt
 *_test
 *.log
+obj/
+bin/
 
