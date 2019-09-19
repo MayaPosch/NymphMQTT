@@ -191,30 +191,11 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	// FIXME: check that the Keep Alive value isn't less than one second. Subtract milliseconds if 
 	// less than 10 seconds or so.
 	int keepAlive = 60; // In seconds. TODO: use connection Keep Alive value.
-	//pingCallback = &NmqttClient::pingreqHandler;
 	pingTimer.setCallback(std::bind(&NmqttClient::pingreqHandler, 
 									this,
 									std::placeholders::_1),
 									handle);
-	pingTimer.start((keepAlive - 2) * 100);
-	
-	/* pingTimer = new NmqttTimer((keepAlive - 2) * 1000, (keepAlive - 2) * 1000);
-	pingCallback = new Poco::TimerCallback<NmqttClient>(*this, &NmqttClient::pingreqHandler);
-	
-	try {
-		pingTimer->stop();
-		pingTimer->setHandle(handle);
-		pingTimer->start(*pingCallback);
-		NYMPH_LOG_INFORMATION("Started ping timer...");
-	}
-	catch (Poco::IllegalStateException &e) {
-		NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
-		return false;
-	}
-	catch (...) {
-		NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
-		return false;
-	} */
+	pingTimer.start((keepAlive - 2) * 400);
 	
 	
 	return true;
@@ -224,8 +205,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 // --- DISCONNECT ---
 bool NmqttClient::disconnect(int handle, string &result) {
 	// Stop the Pingreq timer and delete it.
-	//delete pingTimer;
-	//delete pingCallback;
+	pingTimer.stop();
 	
 	// Create a Disconnect message, send it to the indicated remote.
 	NYMPH_LOG_INFORMATION("Sending DISCONNECT message.");
@@ -313,21 +293,6 @@ bool NmqttClient::sendMessage(int handle, std::string binMsg) {
 	
 	// Reset Ping timer.
 	pingTimer.restart();
-	/* if (pingTimer) {
-		try {
-			pingTimer->stop();
-			pingTimer->start(*pingCallback);
-			NYMPH_LOG_INFORMATION("Started ping timer...");
-		}
-		catch (Poco::IllegalStateException &e) {
-			NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
-			return false;
-		}
-		catch (...) {
-			NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
-			return false;
-		}
-	} */
 	
 	NYMPH_LOG_DEBUG("Successfully restarted the timer.");
 	
@@ -355,14 +320,10 @@ void NmqttClient::connackHandler(int handle, bool sessionPresent, MqttReasonCode
 // alive.
 //void NmqttClient::pingreqHandler(Poco::Timer &t) {
 void NmqttClient::pingreqHandler(uint32_t t) {
-	//
 	NmqttMessage msg(MQTT_PINGREQ);
-	
-	//NmqttTimer* s = dynamic_cast<NmqttTimer*>(&t);
 	
 	NYMPH_LOG_INFORMATION("Sending PINGREQ message for handle: " + 
 							Poco::NumberFormatter::format(t));
-	//						Poco::NumberFormatter::format(s->getHandle()));
 	
 	if (!sendMessage(t, msg.serialize())) {
 		NYMPH_LOG_ERROR("Failed to send PINGREQ message.");
@@ -375,47 +336,12 @@ void NmqttClient::pingreqHandler(uint32_t t) {
 // TODO: implement per handle timer.
 void NmqttClient::pingrespHandler(int handle) {
 	NYMPH_LOG_DEBUG("PINGRESP handler got called.");
-	
-	//long keepAlive = 58 * 1000; // TODO: use global value.
-	
-	// Reset Ping timer.
-	//pingTimer.restart();
-	/* if (pingTimer) {
-		NYMPH_LOG_DEBUG("Trying to restart the timer...");
-		try {
-			NYMPH_LOG_DEBUG("Stopping the timer...");
-			//delete pingTimer;
-			//pingTimer = new NmqttTimer(keepAlive, 0);
-			//pingTimer->setHandle(handle);
-			NYMPH_LOG_DEBUG("Stopped the timer.");
-			//pingTimer->stop();
-			NYMPH_LOG_DEBUG("Starting the timer...");
-			pingTimer->setStartInterval(keepAlive);
-			pingTimer->setPeriodicInterval(0);
-			pingTimer->restart(0);
-			//pingTimer->setStartInterval(keepAlive);
-			//pingTimer->setPeriodicInterval(0);
-			//pingTimer->start(*pingCallback);
-			NYMPH_LOG_INFORMATION("Started ping timer.");
-		}
-		catch (Poco::IllegalStateException &e) {
-			NYMPH_LOG_ERROR("IllegalStateException on ping timer start: " + e.message());
-			return;
-		}
-		catch (...) {
-			NYMPH_LOG_ERROR("Unknown exception on ping timer start.");
-			return;
-		} */
-		
-		//NYMPH_LOG_DEBUG("Successfully restarted the timer.");
-	//}
 }
 
 
 // --- PUBLISH ---
 bool NmqttClient::publish(int handle, std::string topic, std::string payload, std::string &result, 
 							MqttQoS qos, bool retain) {
-	//
 	NmqttMessage msg(MQTT_PUBLISH);
 	msg.setQoS(qos);
 	msg.setRetain(retain);
