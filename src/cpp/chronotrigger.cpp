@@ -59,7 +59,7 @@ void ChronoTrigger::run(uint32_t interval, bool single) {
 			continue;
 		}
 		
-		if (!running) { // Stop was called.
+		if (!stopping) { // Stop was called.
 			break;
 		}
 		
@@ -92,5 +92,5 @@ void ChronoTrigger::finish() {
 void ChronoTrigger::stop() {
 	signaled = true;
 	cv.notify_all();
-	running = false;
+	stopping = false;
 }

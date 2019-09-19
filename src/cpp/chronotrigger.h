@@ -32,6 +32,7 @@ class ChronoTrigger {
 	std::atomic_bool running;
 	std::atomic_bool restarting;
 	std::atomic_bool signaled;
+	std::atomic_bool stopping;
 	std::function<void(uint32_t)> cb;
 	uint32_t data;
 	std::chrono::time_point<std::chrono::steady_clock> startTime;
