@@ -116,6 +116,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 	// Read the variable header (if present).
 	switch ((uint8_t) msg[0]) {
 		case MQTT_CONNECT: {
+			// Server.
 			// TODO: implement for server.
 		}
 		
@@ -131,6 +132,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PUBLISH: {
+			// Server.
 			NYMPH_LOG_INFORMATION("Received PUBLISH message.");
 			
 			// Expect just the topic length (two bytes) and the topic string.
@@ -191,6 +193,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_SUBSCRIBE: {
+			// Server.
 			//
 		}
 		
@@ -203,11 +206,13 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_UNSUBSCRIBE: {
+			// Server.
 			//
 		}
 		
 		break;
 		case MQTT_UNSUBACK: {
+			// Client.
 			//
 		}
 		
@@ -232,7 +237,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_AUTH: {
-			//
+			// MQTT 5.
 		}
 		
 		break;
@@ -469,7 +474,8 @@ std::string NmqttMessage::serialize() {
 		
 		break;
 		case MQTT_UNSUBSCRIBE: {
-			//
+			// Client.
+			// 
 		}
 		
 		break;
@@ -494,7 +500,7 @@ std::string NmqttMessage::serialize() {
 		
 		break;
 		case MQTT_AUTH: {
-			//
+			// MQTT 5.
 		}
 		
 		break;

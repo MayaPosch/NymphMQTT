@@ -36,3 +36,5 @@ publish_message:
 subscribe_broker:
 	g++ -o bin/client_broker_test cpp-test/client_broker_test.cpp ../../ByteBauble/src/cpp/src/bytebauble.cpp $(OBJECTS)  $(INCLUDES) $(CFLAGS) $(LIBS)
 	
+clean:
+	rm $(OBJECTS)

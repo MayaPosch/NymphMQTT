@@ -30,7 +30,8 @@
 
 #include "nymph_logger.h"
 #include "message.h"
-#include "timer.h"
+//#include "timer.h"
+#include "chronotrigger.h"
 
 
 struct NmqttBrokerConnection {
@@ -53,8 +54,10 @@ class NmqttClient {
 	Poco::Condition connectCnd;
 	Poco::Mutex connectMtx;
 	//Poco::Timer* pingTimer = 0;
-	NmqttTimer* pingTimer = 0;
-	Poco::TimerCallback<NmqttClient>* pingCallback = 0;
+	//NmqttTimer* pingTimer = 0;
+	ChronoTrigger pingTimer;
+	//std::function<void(uint32_t)> pingCallback;
+	//Poco::TimerCallback<NmqttClient>* pingCallback = 0;
 	NmqttBrokerConnection* brokerConn = 0;
 	
 	std::string will;
@@ -62,7 +65,8 @@ class NmqttClient {
 	
 	bool sendMessage(int handle, std::string binMsg);
 	void connackHandler(int handle, bool sessionPresent, MqttReasonCodes code);
-	void pingreqHandler(Poco::Timer &t);
+	//void pingreqHandler(Poco::Timer &t);
+	void pingreqHandler(uint32_t t);
 	void pingrespHandler(int handle);
 	
 public:
