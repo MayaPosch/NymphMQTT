@@ -56,12 +56,12 @@ class NmqttClient {
 	bool secureConnection = false;
 	
 	uint8_t connectFlags;
-	bool cleanSessionFlag;
-	bool willFlag;
-	bool willRetainFlag;
-	bool usernameFlag;
-	bool passwordFlag;
-	uint8_t willQoS;
+	bool cleanSessionFlag = true;
+	bool willFlag = false;
+	bool willRetainFlag = false;
+	bool usernameFlag = false;
+	bool passwordFlag = false;
+	uint8_t willQoS = 0;
 	std::string will;
 	std::string willTopic;
 	std::string clientId = "NymphMQTT-client";
