@@ -98,4 +98,6 @@ void ChronoTrigger::stop() {
 	signaled = true;
 	cv.notify_all();
 	stopping = true;
+	
+	thread.join();
 }
