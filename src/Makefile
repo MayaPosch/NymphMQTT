@@ -5,7 +5,7 @@ MKDIR := mkdir -p
 
 SOURCES := $(wildcard cpp/*.cpp)
 OBJECTS := $(addprefix obj/,$(notdir) $(SOURCES:.cpp=.o))
-LIBS := -lPocoNet -lPocoUtil -lPocoFoundation -lPocoJSON
+LIBS := -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lPocoJSON
 INCLUDES := -I cpp/ -I cpp/ -I ../../ByteBauble/src/cpp/src
 CFLAGS := -std=c++11 -g3 -O0 -pthread
 

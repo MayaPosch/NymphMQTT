@@ -123,9 +123,21 @@ bool NmqttClient::connect(string url, int &handle, void* data,
 bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 							NmqttBrokerConnection &conn, string &result) {
 	using namespace std::placeholders;
-	Poco::Net::StreamSocket* socket;
+	NymphSocket ns;
 	try {
-		socket = new Poco::Net::StreamSocket(sa);
+		if (secureConnection) {
+			Poco::Net::initializeSSL();
+			ns.secure = true;
+			ns.context = new Poco::Net::Context(Poco::Net::Context::CLIENT_USE,
+												key,
+												cert,
+												ca);
+			ns.socket = new Poco::Net::SecureStreamSocket(sa, ns.context);
+		}
+		else {
+			ns.secure = false;
+			ns.socket = new Poco::Net::StreamSocket(sa);
+		}
 	}
 	catch (Poco::Net::ConnectionRefusedException &ex) {
 		// Handle connection error.
@@ -146,9 +158,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	}
 	
 	socketsMutex.lock();
-	sockets.insert(pair<int, Poco::Net::StreamSocket*>(lastHandle, socket));
-	NymphSocket ns;
-	ns.socket = socket;
+	sockets.insert(pair<int, Poco::Net::StreamSocket*>(lastHandle, ns.socket));
 	ns.semaphore = new Semaphore(0, 1);
 	socketSemaphores.insert(pair<int, Poco::Semaphore*>(lastHandle, ns.semaphore));
 	ns.data = data;
@@ -166,7 +176,8 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	// Send Connect message using the previously set data.
 	brokerConn = 0;
 	NmqttMessage msg(MQTT_CONNECT);
-	msg.setWill(will);
+	if (willFlag) { msg.setWill(willTopic, will, willQoS, willRetainFlag); }
+	if (usernameFlag) { msg.setCredentials(username, password); }
 	msg.setClientId(clientId);
 	
 	NYMPH_LOG_INFORMATION("Sending CONNECT message.");
@@ -178,7 +189,6 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	// Wait for condition.
 	connectMtx.lock();
 	brokerConn = &conn;
-	long timeout = 3000; // 3 second connection timeout.
 	if (!connectCnd.tryWait(connectMtx, timeout)) {
 		NYMPH_LOG_ERROR("Timeout while trying to connect to broker.");
 		brokerConn = 0;
@@ -210,7 +220,7 @@ bool NmqttClient::disconnect(int handle, string &result) {
 	// Create a Disconnect message, send it to the indicated remote.
 	NYMPH_LOG_INFORMATION("Sending DISCONNECT message.");
 	NmqttMessage msg(MQTT_DISCONNECT);
-	msg.setWill(will);
+	//msg.setWill(will);
 	
 	sendMessage(handle, msg.serialize());
 	
@@ -255,10 +265,31 @@ bool NmqttClient::disconnect(int handle, string &result) {
 }
 
 
+// --- SET CREDENTIALS ---
+void NmqttClient::setCredentials(std::string &user, std::string &pass) {
+	username = user;
+	password = pass;
+	usernameFlag = true;
+	passwordFlag = true;
+}
+
+
 // --- SET WILL ---
-// Set the will message for a Connect message.
-void NmqttClient::setWill(std::string will) {
+void NmqttClient::setWill(std::string topic, std::string will, uint8_t qos, bool retain) {
 	this->will = will;
+	this->willTopic = topic;
+	this->willRetainFlag = retain;
+	this->willQoS = qos;
+	this->willFlag = true;
+}
+
+
+// --- SET TLS ---
+void NmqttClient::setTLS(std::string &ca, std::string &cert, std::string &key) {
+	this->ca = ca;
+	this->cert = cert;
+	this->key = key;
+	secureConnection = true;
 }
 
 
@@ -318,7 +349,6 @@ void NmqttClient::connackHandler(int handle, bool sessionPresent, MqttReasonCode
 // --- PINGREQ HANDLER ---
 // Callback for the internal timer to send a ping request to the broker to keep the connection
 // alive.
-//void NmqttClient::pingreqHandler(Poco::Timer &t) {
 void NmqttClient::pingreqHandler(uint32_t t) {
 	NmqttMessage msg(MQTT_PINGREQ);
 	

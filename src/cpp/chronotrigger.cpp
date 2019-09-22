@@ -39,6 +39,7 @@ void ChronoTrigger::run(uint32_t interval, bool single) {
 	running = true;
 	signaled = false;
 	restarting = false;
+	stopping = false;
 	while (true) {
 		// Wait in the condition variable until the wait ends, or the condition is signalled.
 		startTime = std::chrono::steady_clock::now();
@@ -56,10 +57,11 @@ void ChronoTrigger::run(uint32_t interval, bool single) {
 			running = true;
 			signaled = false;
 			restarting = false;
+			stopping = false;
 			continue;
 		}
 		
-		if (!stopping) { // Stop was called.
+		if (stopping) { // Stop was called.
 			break;
 		}
 		
@@ -95,5 +97,5 @@ void ChronoTrigger::finish() {
 void ChronoTrigger::stop() {
 	signaled = true;
 	cv.notify_all();
-	stopping = false;
+	stopping = true;
 }

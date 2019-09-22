@@ -57,11 +57,47 @@ NmqttMessage::~NmqttMessage() {
 }
 
 
+// --- SET CREDENTIALS ---
+void NmqttMessage::setCredentials(std::string &user, std::string &pass) {
+	username = user;
+	password = pass;
+	usernameFlag = true;
+	passwordFlag = true;
+}
+
+
+// --- SET WILL ---
+void NmqttMessage::setWill(std::string topic, std::string will, uint8_t qos, bool retain) {
+	this->will = will;
+	this->willTopic = topic;
+	this->willRetainFlag = retain;
+	this->willQoS = qos;
+	this->willFlag = true;
+	if (qos == 1) { 
+		willQoS1 = true;
+	}
+	else if (qos == 2) {
+		willQoS2 = true;
+	}
+}
+
+
 // --- CREATE MESSAGE ---
 // Set the command type. Returns false if the command type is invalid, for example when the current
 // protocol version does not support it.
 bool NmqttMessage::createMessage(MqttPacketType type) {
 	if (type == MQTT_AUTH && mqttVersion == MQTT_PROTOCOL_VERSION_4) { return false; }
+	
+	if (type == MQTT_CONNECT) {
+		// Set default connect options.
+		cleanSessionFlag = true;
+		willFlag = false;
+		willRetainFlag = false;
+		usernameFlag = false;
+		passwordFlag = false;
+		willQoS1 = false;
+		willQoS2 = false;
+	}
 	
 	command = type;
 	
@@ -323,22 +359,31 @@ std::string NmqttMessage::serialize() {
 			// * Protocol Level, 
 			// * Connect Flags, 
 			// * Keep Alive, and
-			// * Properties.
+			// * Properties. (MQTT 5)
 			bytebauble.setGlobalEndianness(BB_BE);
 			uint16_t protNameLenHost = 0x0004;
 			uint16_t protNameLenBE = bytebauble.toGlobal(protNameLenHost, bytebauble.getHostEndian());
 			varHeader.append((char*) &protNameLenBE, 2);
 			varHeader += "MQTT"; // The fixed protocol name.
 			
-			uint8_t protVersion = 4;	// Protocol version is 5.
+			uint8_t protVersion;
+			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
+				protVersion = 5;
+			}
+			else {
+				protVersion = 4;	// Protocol version default is 4 (3.1.1).
+			}
+			
 			varHeader.append((char*) &protVersion, 1);
 			
 			uint8_t connectFlags = 0;
-			connectFlags += (uint8_t) MQTT_CONNECT_CLEAN_START;
-			//connectFlags += (uint8_t) MQTT_CONNECT_WILL;
-			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_QOS_L1;
-			//connectFlags += (uint8_t) MQTT_CONNECT_WILL_RETAIN;			
-			// TODO: username & password options.
+			if (cleanSessionFlag) { connectFlags += (uint8_t) MQTT_CONNECT_CLEAN_START; }
+			if (willFlag) { connectFlags += (uint8_t) MQTT_CONNECT_WILL; }
+			if (willQoS1) { connectFlags += (uint8_t) MQTT_CONNECT_WILL_QOS_L1; }
+			if (willQoS2) { connectFlags += (uint8_t) MQTT_CONNECT_WILL_QOS_L2; }
+			if (willRetainFlag) { connectFlags += (uint8_t) MQTT_CONNECT_WILL_RETAIN; }
+			if (passwordFlag) { connectFlags += (uint8_t) MQTT_CONNECT_PASSWORD; }
+			if (usernameFlag) { connectFlags += (uint8_t) MQTT_CONNECT_USERNAME; }
 			varHeader.append((char*) &connectFlags, 1);
 			
 			uint16_t keepAliveHost = 60; // In seconds.
@@ -361,14 +406,34 @@ std::string NmqttMessage::serialize() {
 			// UTF8-encoded string with 16-bit uint BE header indicating string length.
 			uint16_t clientIdLenHost = clientId.length();
 			uint16_t clientIdLenBE = bytebauble.toGlobal(clientIdLenHost, bytebauble.getHostEndian());
-			//std::cout << "ClientID: " << clientId << ", size: " << clientIdLenHost << ", BE: " <<
-			//			std::hex << clientIdLenBE << std::endl;
 			payload.append((char*) &clientIdLenBE, 2);
 			payload += clientId;
 			
-			// TODO: Will properties, will topic, will payload.
+			// Will properties (MQTT 5), will topic, will payload.
+			if (willFlag) {
+				uint16_t willTopicLenBE = bytebauble.toGlobal(willTopic.length(), 
+																bytebauble.getHostEndian());
+				payload.append((char*) &willTopicLenBE, 2);
+				payload += willTopic;
+				
+				uint16_t willLenBE = bytebauble.toGlobal(will.length(), bytebauble.getHostEndian());
+				payload.append((char*) &willLenBE, 2);
+				payload += will;
+			}
 			
-			// TODO: username, password.
+			// Username, password.
+			if (usernameFlag) {
+				uint16_t usernameLenBE = bytebauble.toGlobal(willTopic.length(), 
+																bytebauble.getHostEndian());
+				payload.append((char*) &usernameLenBE, 2);
+				payload += username;
+			}
+				
+			if (passwordFlag) {
+				uint16_t passwordLenBE = bytebauble.toGlobal(password.length(), bytebauble.getHostEndian());
+				payload.append((char*) &passwordLenBE, 2);
+				payload += password;
+			}
 		}
 		
 		break;

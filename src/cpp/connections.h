@@ -22,13 +22,17 @@
 
 #include <Poco/Semaphore.h>
 #include <Poco/Net/StreamSocket.h>
+#include <Poco/Net/SecureStreamSocket.h>
 
 #include "client.h"
 
 
 // TYPES
 struct NymphSocket {
-	Poco::Net::StreamSocket* socket;	// Pointer to the socket instance.
+	bool secure;						// Are using an SSL/TLS connection or not?
+	//Poco::Net::SecureStreamSocket* ssocket;	// Pointer to a secure socket instance.
+	Poco::Net::Context::Ptr context;	// The security context for TLS connections.
+	Poco::Net::StreamSocket* socket;	// Pointer to a non-secure socket instance.
 	Poco::Semaphore* semaphore;			// Signals when it's safe to delete the socket.
 	std::function<void(int, std::string, std::string)> handler;		// Publish message handler.
 	std::function<void(int, bool, MqttReasonCodes)> connackHandler; // CONNACK handler.

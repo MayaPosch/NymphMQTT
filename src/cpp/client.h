@@ -53,9 +53,21 @@ class NmqttClient {
 	Poco::Mutex connectMtx;
 	ChronoTrigger pingTimer;
 	NmqttBrokerConnection* brokerConn = 0;
+	bool secureConnection = false;
 	
+	uint8_t connectFlags;
+	bool cleanSessionFlag;
+	bool willFlag;
+	bool willRetainFlag;
+	bool usernameFlag;
+	bool passwordFlag;
+	uint8_t willQoS;
 	std::string will;
+	std::string willTopic;
 	std::string clientId = "NymphMQTT-client";
+	std::string username;
+	std::string password;
+	std::string ca, cert, key;
 	
 	bool sendMessage(int handle, std::string binMsg);
 	void connackHandler(int handle, bool sessionPresent, MqttReasonCodes code);
@@ -77,7 +89,9 @@ public:
 					NmqttBrokerConnection &conn, std::string &result);
 	bool disconnect(int handle, std::string &result);
 	
-	void setWill(std::string will);
+	void setCredentials(std::string &user, std::string &pass);
+	void setWill(std::string topic, std::string will, uint8_t qos = 0, bool retain = false);
+	void setTLS(std::string &ca, std::string &cert, std::string &key);
 	void setClientId(std::string id) { clientId = id; }
 	bool publish(int handle, std::string topic, std::string payload, std::string &result, 
 					MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);

@@ -118,8 +118,21 @@ class NmqttMessage {
 	MqttReasonCodes reasonCode;
 	
 	// Connect message.
+	//MqttConnectFlags connectFlags;
+	uint8_t connectFlags;
+	bool cleanSessionFlag;
+	bool willFlag;
+	bool willRetainFlag;
+	bool usernameFlag;
+	bool passwordFlag;
+	uint8_t willQoS;
+	bool willQoS1;
+	bool willQoS2;
 	std::string will;
+	std::string willTopic;
 	std::string clientId;
+	std::string username;
+	std::string password;
 	
 	// Status flags.
 	bool empty = true;		// Is this an empty message?
@@ -144,8 +157,9 @@ public:
 	void setProtocolVersion(MqttProtocolVersion version) { mqttVersion = version; }
 	
 	// For Connect message.
-	void setWill(std::string will) { this->will = will; }
 	void setClientId(std::string id) { clientId = id; }
+	void setCredentials(std::string &user, std::string &pass);
+	void setWill(std::string topic, std::string will, uint8_t qos = 0, bool retain = false);
 	
 	// For Publish message.
 	void setDuplicateMessage(bool dup) { duplicateMessage = dup; }
