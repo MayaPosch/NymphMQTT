@@ -96,8 +96,8 @@ void ChronoTrigger::finish() {
 // Signal the condition variable, end the timer.
 void ChronoTrigger::stop() {
 	signaled = true;
-	cv.notify_all();
 	stopping = true;
+	cv.notify_all();
 	
 	thread.join();
 }
