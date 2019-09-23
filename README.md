@@ -21,7 +21,15 @@ The project status, for each port.
 * Basic client connect/subscribe/publish/receive support works.
 * Connecting to multiple brokers should work.
 * Basic MQTT 5 properties support is being integrated.
-* LibPOCO as only dependency at this point.
+
+### Building ###
+
+Dependencies are:
+
+* LibPOCO
+* [ByteBauble](https://github.com/MayaPosch/ByteBauble)
+
+
 
 ### Ada ###
 
