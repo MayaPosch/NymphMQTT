@@ -108,6 +108,7 @@ class NmqttMessage {
 	bool duplicateMessage = false;
 	MqttQoS QoS = MQTT_QOS_AT_MOST_ONCE;
 	bool retainMessage = false;
+	uint16_t packetID;
 	
 	// Fixed header.
 	uint32_t messageLength;

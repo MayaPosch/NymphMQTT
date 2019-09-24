@@ -125,8 +125,16 @@ int NmqttMessage::parseMessage(std::string msg) {
 	std::cout << "Message(1): " << std::hex << (uint32_t) msg[1] << std::endl;
 	std::cout << "Length: " << msg.length() << std::endl;
 	
-	// Read out the first byte.
-	command = (MqttPacketType) static_cast<uint8_t>(msg[0]); // TODO: validate range.
+	// Read out the first byte. Mask bits 0-3 as they're not used here.
+	// Also read out the DUP, QoS and Retain flags.
+	uint8_t byte0 = static_cast<uint8_t>(msg[0]);
+	command = (MqttPacketType) (byte0 & 0xF0); // TODO: validate range.
+	duplicateMessage = (byte0 >> 3) & 1U;
+	uint8_t qosCnt = 0;
+	if ((byte0 >> 2) & 1U) { QoS = MQTT_QOS_AT_LEAST_ONCE; qosCnt++; }
+	if ((byte0 >> 1) & 1U) { QoS = MQTT_QOS_EXACTLY_ONCE; qosCnt++; }
+	if (qosCnt > 1) { QoS = MQTT_QOS_AT_MOST_ONCE; }
+	retainMessage = byte0 & 1U;
 	idx++;
 	
 	// Debug
@@ -168,7 +176,6 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PUBLISH: {
-			// Server.
 			NYMPH_LOG_INFORMATION("Received PUBLISH message.");
 			
 			// Expect just the topic length (two bytes) and the topic string.
@@ -187,16 +194,23 @@ int NmqttMessage::parseMessage(std::string msg) {
 			
 			idx += strlen;
 		
-			// TODO: handle QoS 1+ here.
+			// Handle QoS 1+ here.
+			// Parse out the two bytes containing the packet identifier. This is in BE format
+			// (MSB/LSB).
+			uint16_t pIDBE = *((uint16_t*) &msg[idx]);
+			packetID = bytebauble.toHost(pIDBE, BB_BE);
+			idx += 2;
 			
-			// Expect no properties here (0x00).
-			
-			// Debug
-			std::cout << "Index for properties: " << idx << std::endl;
-			
-			uint8_t properties = msg[idx++];
-			if (properties != 0x00) {
-				std::cerr << "Expected no properties. Got: " << (int) properties << std::endl;
+			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
+				// MQTT 5: Expect no properties here (0x00).
+				
+				// Debug
+				std::cout << "Index for properties: " << idx << std::endl;
+				
+				uint8_t properties = msg[idx++];
+				if (properties != 0x00) {
+					std::cerr << "Expected no properties. Got: " << (int) properties << std::endl;
+				}
 			}
 			
 			// Read the payload. This is the remaining section of the message (if any).
@@ -477,12 +491,18 @@ std::string NmqttMessage::serialize() {
 			varHeader += topic;
 			
 			// Add packet identifier if QoS > 0.
-			// TODO:
+			// TODO: keep track of unused IDs.
+			if (QoS != MQTT_QOS_AT_MOST_ONCE) {
+				uint16_t pIDBE = bytebauble.toGlobal(packetID, bytebauble.getHostEndian());
+				varHeader.append((char*) &pIDBE, 2);
+			}
 			
 			// Set properties. 
 			// TODO: implement. Set to 0 for now.
-			uint8_t properties = 0x00;
-			varHeader.append((char*) &properties, 1);
+			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
+				uint8_t properties = 0x00;
+				varHeader.append((char*) &properties, 1);
+			}
 		}
 		
 		break;
@@ -540,7 +560,18 @@ std::string NmqttMessage::serialize() {
 		break;
 		case MQTT_UNSUBSCRIBE: {
 			// Client.
-			// 
+			// Fixed header has one required value: 0x2.
+			b0 += 0x2;
+			
+			// Variable header. 
+			uint16_t packetIdHost = 10;
+			uint16_t packetIdBE = bytebauble.toGlobal(packetIdHost, bytebauble.getHostEndian());
+			varHeader.append((char*) &packetIdBE, 2);
+			
+			// Set packet ID.
+			// TODO: implement packet ID handling.
+			uint16_t pIDBE = bytebauble.toGlobal(packetID, bytebauble.getHostEndian());
+			varHeader.append((char*) &pIDBE, 2);
 		}
 		
 		break;
