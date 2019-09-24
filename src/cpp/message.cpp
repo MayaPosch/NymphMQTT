@@ -197,9 +197,11 @@ int NmqttMessage::parseMessage(std::string msg) {
 			// Handle QoS 1+ here.
 			// Parse out the two bytes containing the packet identifier. This is in BE format
 			// (MSB/LSB).
-			uint16_t pIDBE = *((uint16_t*) &msg[idx]);
-			packetID = bytebauble.toHost(pIDBE, BB_BE);
-			idx += 2;
+			if (qosCnt > 0) {
+				uint16_t pIDBE = *((uint16_t*) &msg[idx]);
+				packetID = bytebauble.toHost(pIDBE, BB_BE);
+				idx += 2;
+			}
 			
 			if (mqttVersion == MQTT_PROTOCOL_VERSION_5) {
 				// MQTT 5: Expect no properties here (0x00).
@@ -572,6 +574,11 @@ std::string NmqttMessage::serialize() {
 			// TODO: implement packet ID handling.
 			uint16_t pIDBE = bytebauble.toGlobal(packetID, bytebauble.getHostEndian());
 			varHeader.append((char*) &pIDBE, 2);
+			
+			// Payload is the topic to unsubscribe from.
+			uint16_t topicLenBE = bytebauble.toGlobal(topic.length(), bytebauble.getHostEndian());
+			payload.append((char*) &topicLenBE, 2);
+			payload += topic;
 		}
 		
 		break;
