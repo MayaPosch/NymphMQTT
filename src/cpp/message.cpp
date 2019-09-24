@@ -158,7 +158,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 	}
 	
 	// Read the variable header (if present).
-	switch ((uint8_t) msg[0]) {
+	switch (command) {
 		case MQTT_CONNECT: {
 			// Server.
 			// TODO: implement for server.
