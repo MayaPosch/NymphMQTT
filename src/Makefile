@@ -6,11 +6,14 @@ RM = rm
 AR = ar
 
 OUTPUT := libnymphmqtt.a
+SERVER := nmqtt_server
 
 SOURCES := $(wildcard cpp/*.cpp)
 OBJECTS := $(addprefix obj/,$(notdir) $(SOURCES:.cpp=.o))
+SERVER_SOURCES := $(wildcard server/*.cpp)
+SERVER_OBJECTS := $(addprefix obj/,$(notdir) $(SERVER_SOURCES:.cpp=.o))
 LIBS := -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lPocoJSON -lbytebauble
-INCLUDES := -I cpp/ -I cpp/ 
+INCLUDES := -I cpp/ 
 CFLAGS := -std=c++11 -g3 -O0 -pthread
 
 # Check for MinGW and patch up POCO
@@ -30,6 +33,7 @@ makedir:
 	$(MKDIR) bin
 	$(MKDIR) lib
 	$(MKDIR) obj/cpp
+	$(MKDIR) obj/server
 	
 obj/%.o: %.cpp
 	$(GCC) -c -o $@ $< $(CFLAGS) $(INCLUDES)
@@ -37,6 +41,9 @@ obj/%.o: %.cpp
 lib/$(OUTPUT): $(OBJECTS)
 	-rm -f $@
 	$(AR) rcs $@ $^
+	
+server: lib $(SERVER_OBJECTS)
+	$(GCC) -o bin/$(SERVER) $(OBJECTS) $(SERVER_OBJECTS) $(CFLAGS) $(LIBS) $(INCLUDES)
 
 build_tests: message_parse publish_message subscribe_broker
 	

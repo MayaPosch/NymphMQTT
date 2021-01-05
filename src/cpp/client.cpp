@@ -167,7 +167,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	ns.connackHandler = std::bind(&NmqttClient::connackHandler, this, _1, _2, _3);
 	ns.pingrespHandler = std::bind(&NmqttClient::pingrespHandler, this, _1);
 	NmqttConnections::addSocket(ns);
-	NmqttClientListenerManager::addConnection(lastHandle);
+	if (!NmqttClientListenerManager::addConnection(lastHandle)) { return false; }
 	handle = lastHandle++;
 	socketsMutex.unlock();
 	
@@ -190,6 +190,7 @@ bool NmqttClient::connect(Poco::Net::SocketAddress sa, int &handle,  void* data,
 	connectMtx.lock();
 	brokerConn = &conn;
 	if (!connectCnd.tryWait(connectMtx, timeout)) {
+		result = "Timeout while trying to connect to broker.";
 		NYMPH_LOG_ERROR("Timeout while trying to connect to broker.");
 		brokerConn = 0;
 		connectMtx.unlock();

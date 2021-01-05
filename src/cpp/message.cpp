@@ -161,7 +161,76 @@ int NmqttMessage::parseMessage(std::string msg) {
 	switch (command) {
 		case MQTT_CONNECT: {
 			// Server.
-			// TODO: implement for server.
+			// Decode variable header.
+			// First field: protocol name '0x00 0x04 M Q T T'.
+			std::string protName = msg.substr(idx, 6);
+			std::string protMatch = { 0x00, 0x04, 'M', 'Q', 'T', 'T' };
+			if (protName != protMatch) {
+				std::cerr << "CONNECT protocol name incorrect, got: " << protName << std::endl;
+				return -1;
+			}
+			
+			idx += 6;
+			
+			// Protocol level: one byte.
+			uint8_t protver = (uint8_t) msg[idx++];
+			if (protver == 4) { mqttVersion = MQTT_PROTOCOL_VERSION_4; }
+			else if (protver == 5) { mqttVersion == MQTT_PROTOCOL_VERSION_5; }
+			else {
+				std::cerr << "Invalid MQTT version: " << (uint16_t) protver << std::endl;
+				// FIXME: Server must return CONNACK with code 0x01 in this case.
+				return -1;
+			}
+			
+			// Connect flags: one byte.
+			uint8_t connflags = (uint8_t) msg[idx++];
+			usernameFlag = (connflags >> 7) & 1U;
+			passwordFlag = (connflags >> 6) & 1U;
+			willRetainFlag = (connflags >> 5) & 1U;
+			willQoS = (((connflags >> 4) & 1U) << 1) + (connflags >> 3) & 1U;
+			willFlag = (connflags >> 2) & 1U;
+			cleanSessionFlag = (connflags >> 1) & 1U;
+			if (connflags & 1U) {
+				std::cerr << "Reserved flag in connect flags set. Aborting parse." << std::endl;
+				return -1;
+			}
+			
+			// Keep alive value: two bytes.
+			keepAlive = (uint16_t) msg[idx];
+			idx += 2;
+			
+			// Payload section.
+			// Client ID. UTF-8 string, preceded by two bytes (MSB, LSB) with the length.
+			uint16_t len = (uint16_t) msg[idx];
+			idx += 2;
+			clientId = msg.substr(idx, len);
+			idx += len;
+			
+			if (willFlag) {
+				uint16_t len = (uint16_t) msg[idx];
+				idx += 2;
+				willTopic = msg.substr(idx, len);
+				idx += len;
+			
+				len = (uint16_t) msg[idx];
+				idx += 2;
+				will = msg.substr(idx, len);
+				idx += len;
+			}
+			
+			if (usernameFlag) {
+				uint16_t len = (uint16_t) msg[idx];
+				idx += 2;
+				username = msg.substr(idx, len);
+				idx += len;
+			}
+			
+			if (passwordFlag) {
+				uint16_t len = (uint16_t) msg[idx];
+				idx += 2;
+				password = msg.substr(idx, len);
+				idx += len;
+			}
 		}
 		
 		break;
@@ -270,7 +339,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		
 		break;
 		case MQTT_PINGREQ: {
-			//
+			// Server.
+			// No variable header or payload.
 		}
 		
 		break;
@@ -588,7 +658,9 @@ std::string NmqttMessage::serialize() {
 		
 		break;
 		case MQTT_PINGREQ: {
+			// Server.
 			// This command has no variable header and no payload.
+			// Generate a PINGRESP ping response packet to send back to the client.
 		}
 		
 		break;

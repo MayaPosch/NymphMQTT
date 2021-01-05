@@ -134,6 +134,7 @@ class NmqttMessage {
 	std::string clientId;
 	std::string username;
 	std::string password;
+	uint16_t keepAlive;
 	
 	// Status flags.
 	bool empty = true;		// Is this an empty message?
