@@ -179,7 +179,7 @@ ifdef OS
 PREFIX = /mingw64
 endif
 
-.PHONY: install
+.PHONY: install lib
 install:
 	install -d $(DESTDIR)$(PREFIX)/lib/
 	install -m 644 lib/$(ARCH)$(OUTPUT).a $(DESTDIR)$(PREFIX)/lib/
