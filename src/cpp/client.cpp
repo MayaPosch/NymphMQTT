@@ -406,3 +406,16 @@ bool NmqttClient::unsubscribe(int handle, std::string topic, std::string result)
 	
 	return sendMessage(handle, msg.serialize());
 }
+
+
+// --- GET LOCAL ADDRESS
+// Returns the local IPv4 address as a string, or an empty string if handle not found.
+std::string NmqttClient::getLocalAddress(int handle) {
+	//
+	std::map<int, Poco::Net::StreamSocket*>::iterator it;
+	it = sockets.find(handle);
+	if (it == sockets.end()) { return std::string(); }
+	
+	return it->second->address().toString();
+}
+

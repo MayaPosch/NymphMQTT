@@ -97,6 +97,8 @@ public:
 					MqttQoS qos = MQTT_QOS_AT_MOST_ONCE, bool retain = false);
 	bool subscribe(int handle, std::string topic, std::string result);
 	bool unsubscribe(int handle, std::string topic, std::string result);
+	
+	std::string getLocalAddress(int handle);
 };
 
 
