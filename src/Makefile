@@ -73,7 +73,7 @@ AR = ar
 endif
 
 
-OUTPUT = libnymphrpc
+OUTPUT = libnymphmqtt
 VERSION = 0.1
 
 # Use -soname on Linux/BSD, -install_name on Darwin (MacOS).
