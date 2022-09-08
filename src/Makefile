@@ -94,7 +94,8 @@ SHARED_OBJECTS := $(addprefix obj/shared/$(ARCH),$(notdir) $(SOURCES:.cpp=.o))
 SERVER_SOURCES := $(wildcard server/*.cpp)
 SERVER_OBJECTS := $(addprefix obj/,$(notdir) $(SERVER_SOURCES:.cpp=.o))
 
-LIBS := -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lPocoJSON -lbytebauble
+LIBS := -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lPocoJSON 
+#-lbytebauble
 INCLUDES := -I cpp/ 
 CFLAGS := -std=c++11 -g3 -O0
 SHARED_FLAGS := -fPIC -shared -Wl,$(SONAME),$(LIBNAME)
