@@ -13,6 +13,7 @@
 #include "server_connections.h"
 #include "server_request.h"
 #include "dispatcher.h"
+#include "nymph_logger.h"
 
 #include <Poco/NumberFormatter.h>
 
