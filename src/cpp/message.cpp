@@ -26,8 +26,12 @@
 
 #include <bytebauble.h>
 
-// debug
 #include <iostream>
+
+// debug
+//#define DEBUG 1
+#ifdef DEBUG
+#endif
 
 
 // --- CONSTRUCTOR ---
@@ -121,9 +125,11 @@ int NmqttMessage::parseMessage(std::string msg) {
 	}
 	
 	// Debug
+#ifdef DEBUG
 	std::cout << "Message(0): " << std::hex << (uint32_t) msg[0] << std::endl;
 	std::cout << "Message(1): " << std::hex << (uint32_t) msg[1] << std::endl;
 	std::cout << "Length: " << msg.length() << std::endl;
+#endif
 	
 	// Read out the first byte. Mask bits 0-3 as they're not used here.
 	// Also read out the DUP, QoS and Retain flags.
@@ -138,7 +144,9 @@ int NmqttMessage::parseMessage(std::string msg) {
 	idx++;
 	
 	// Debug
+#ifdef DEBUG
 	std::cout << "Found command: 0x" << std::hex << command << std::endl;
+#endif
 		
 	// Get the message length decoded using ByteBauble's method.
 	uint32_t pInt = (uint32_t) msg[1];
@@ -146,9 +154,11 @@ int NmqttMessage::parseMessage(std::string msg) {
 	idx += pblen;
 	
 	// debug
+#ifdef DEBUG
 	std::cout << "Variable integer: " << std::hex << pInt << std::endl;
 	std::cout << "Packed integer length: " << pblen << " bytes." << std::endl;
 	std::cout << "Message length: " << messageLength << std::endl;
+#endif
 	
 	if (pblen + 1 + messageLength != msg.length()) {
 		// Return error.
@@ -201,6 +211,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 			
 			// Payload section.
 			// Client ID. UTF-8 string, preceded by two bytes (MSB, LSB) with the length.
+			// TODO: convert BE length int to host int.
 			uint16_t len = (uint16_t) msg[idx];
 			idx += 2;
 			clientId = msg.substr(idx, len);
@@ -252,14 +263,18 @@ int NmqttMessage::parseMessage(std::string msg) {
 			uint16_t lenBE = *((uint16_t*) &msg[idx]);
 			
 			// Debug
+#ifdef DEBUG
 			std::cout << "String length (BE): 0x" << std::hex << lenBE << std::endl;
+#endif
 			
 			uint16_t strlen = bytebauble.toHost(lenBE, BB_BE);
 			idx += 2;
 			topic = msg.substr(idx, strlen);
 			
 			// Debug
+#ifdef DEBUG
 			std::cout << "Strlen: " << strlen << ", topic: " << topic << std::endl;
+#endif
 			
 			idx += strlen;
 		
@@ -276,7 +291,9 @@ int NmqttMessage::parseMessage(std::string msg) {
 				// MQTT 5: Expect no properties here (0x00).
 				
 				// Debug
+#ifdef DEBUG
 				std::cout << "Index for properties: " << idx << std::endl;
+#endif
 				
 				uint8_t properties = msg[idx++];
 				if (properties != 0x00) {
@@ -315,7 +332,8 @@ int NmqttMessage::parseMessage(std::string msg) {
 		break;
 		case MQTT_SUBSCRIBE: {
 			// Server.
-			//
+			// TODO: implement.
+			// 
 		}
 		
 		break;
@@ -328,6 +346,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		break;
 		case MQTT_UNSUBSCRIBE: {
 			// Server.
+			// TODO: implement.
 			//
 		}
 		
@@ -335,6 +354,7 @@ int NmqttMessage::parseMessage(std::string msg) {
 		case MQTT_UNSUBACK: {
 			// Client.
 			//
+			NYMPH_LOG_INFORMATION("Received UNSUBACK message.");
 		}
 		
 		break;
@@ -687,9 +707,11 @@ std::string NmqttMessage::serialize() {
 	uint32_t lenBytes = bytebauble.writePackedInt(msgLen, msgLenPacked);
 	
 	// Debug
+#ifdef DEBUG
 	std::cout << "Message length: 0x" << std::hex << msgLen << std::endl;
 	std::cout << "Message length (packed): 0x" << std::hex << msgLenPacked << std::endl;
 	std::cout << "Message length bytes: 0x" << std::hex << lenBytes << std::endl;
+#endif
 	
 	std::string output; // TODO: preallocate size.
 	output.append((char*) &b0, 1);
