@@ -33,12 +33,12 @@ void ByteBauble::detectHostEndian() {
 	uint16_t bytes = 1;
 	if (*((uint8_t*) &bytes) == 1) {
 		// Detected little endian.
-		std::cout << "Detected Host Little Endian." << std::endl;
+		//std::cout << "Detected Host Little Endian." << std::endl;
 		hostEndian = BB_LE;
 	}
 	else {
 		// Detected big endian.
-		std::cout << "Detected Host Big Endian." << std::endl;
+		//std::cout << "Detected Host Big Endian." << std::endl;
 		hostEndian = BB_BE;
 	}
 }
