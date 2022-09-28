@@ -66,5 +66,6 @@ void Request::process() {
 
 // --- FINISH ---
 void Request::finish() {
-	//outFnc("Finished processing: " + value);
+	// Call own destructor.
+	delete this;
 }
