@@ -56,6 +56,7 @@ bool Dispatcher::stop() {
 	
 	for (int j = 0; j < threads.size(); ++j) {
 		threads[j]->join();
+		delete threads[j];
 		
 		cout << "Joined threads.\n";
 	}
